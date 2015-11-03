@@ -75,6 +75,9 @@ l1t::TriggerMenuXmlProducer::TriggerMenuXmlProducer(
 
     }
 
+    m_newXMLGrammar = parSet.getParameter<bool>("newGrammar");
+
+
     edm::LogInfo("L1TGlobal")
     << "\n\nL1 Trigger Menu: "
     << "\n\n  def.xml file: \n    " << m_defXmlFile
@@ -206,8 +209,14 @@ boost::shared_ptr<TriggerMenu> l1t::TriggerMenuXmlProducer::produceGtTriggerMenu
     gtXmlParser.setGtNumberTechTriggers(numberTechTriggers);
     gtXmlParser.setGtNumberL1JetCounts(numberL1JetCounts);
 
-    gtXmlParser.parseXmlFile(m_defXmlFile, m_vmeXmlFile);
-
+    if( !(m_newXMLGrammar) ) {
+      LogDebug("l1t|Global") << "Parsing old grammar file..." << std::endl;
+      gtXmlParser.parseXmlFile(m_defXmlFile, m_vmeXmlFile);
+    } else {
+      LogDebug("l1t|Global") << "Parsing new grammar file..." << std::endl;   
+      gtXmlParser.parseXmlFileV2(m_defXmlFile);
+    }
+    
     // transfer the condition map and algorithm map from parser to L1uGtTriggerMenu
 
     boost::shared_ptr<TriggerMenu> pL1uGtTriggerMenu = boost::shared_ptr<TriggerMenu>(
@@ -234,6 +243,10 @@ boost::shared_ptr<TriggerMenu> l1t::TriggerMenuXmlProducer::produceGtTriggerMenu
     pL1uGtTriggerMenu->setGtAlgorithmMap(gtXmlParser.gtAlgorithmMap());
     pL1uGtTriggerMenu->setGtAlgorithmAliasMap(gtXmlParser.gtAlgorithmAliasMap());
     pL1uGtTriggerMenu->setGtTechnicalTriggerMap(gtXmlParser.gtTechnicalTriggerMap());
+    
+    //Dump what we have
+    int verbose=2;
+    pL1uGtTriggerMenu->print(std::cout,verbose);
 
     //LogDebug("L1TGlobalConfig")
     //<< "\n\nReturning L1 Trigger Menu!"

@@ -39,6 +39,17 @@
 
 #include "L1Trigger/L1TGlobal/src/L1TMenuEditor/L1TriggerMenu.hxx"
 
+#include "tmEventSetup/tmEventSetup.hh"
+#include "tmEventSetup/esTriggerMenu.hh"
+#include "tmEventSetup/esAlgorithm.hh"
+#include "tmEventSetup/esCondition.hh"
+#include "tmEventSetup/esObject.hh"
+#include "tmEventSetup/esCut.hh"
+#include "tmEventSetup/esScale.hh"
+#include "tmGrammar/Algorithm.hh"
+
+
+
 // constructor
 l1t::TriggerMenuXmlParser::TriggerMenuXmlParser() :
     L1GtXmlParserTags(), m_xmlErrHandler(0), m_triggerMenuInterface("NULL"),
@@ -257,6 +268,7 @@ void l1t::TriggerMenuXmlParser::parseXmlFile(const std::string& defXmlFile,
     m_corCaloTemplate.resize(m_numberConditionChips);
     m_corEnergySumTemplate.resize(m_numberConditionChips);
 
+
     // set the name of the trigger menu name:
     //     defXmlFile, stripped of absolute path and .xml
     // will be overwritten by the value read from the xml file, with a warning if
@@ -286,6 +298,145 @@ void l1t::TriggerMenuXmlParser::parseXmlFile(const std::string& defXmlFile,
 //     cleanupXML(parser);
 
 }
+
+
+// parse def.xml file
+void l1t::TriggerMenuXmlParser::parseXmlFileV2(const std::string& defXmlFile) {
+
+
+    // resize the vector of condition maps
+    // the number of condition chips should be correctly set before calling parseXmlFile
+    m_conditionMap.resize(m_numberConditionChips);
+
+    m_vecMuonTemplate.resize(m_numberConditionChips);
+    m_vecCaloTemplate.resize(m_numberConditionChips);
+    m_vecEnergySumTemplate.resize(m_numberConditionChips);
+    m_vecJetCountsTemplate.resize(m_numberConditionChips);
+    m_vecCastorTemplate.resize(m_numberConditionChips);
+    m_vecHfBitCountsTemplate.resize(m_numberConditionChips);
+    m_vecHfRingEtSumsTemplate.resize(m_numberConditionChips);
+    m_vecBptxTemplate.resize(m_numberConditionChips);
+    m_vecExternalTemplate.resize(m_numberConditionChips);
+
+    m_vecCorrelationTemplate.resize(m_numberConditionChips);
+    m_corMuonTemplate.resize(m_numberConditionChips);
+    m_corCaloTemplate.resize(m_numberConditionChips);
+    m_corEnergySumTemplate.resize(m_numberConditionChips);
+
+    // set the name of the trigger menu name:
+    //     defXmlFile, stripped of absolute path and .xml
+    // will be overwritten by the value read from the xml file, with a warning if
+    // they are not the same
+    m_triggerMenuName = defXmlFile;
+    size_t xmlPos = m_triggerMenuName.find_last_of("/");
+    m_triggerMenuName.erase(m_triggerMenuName.begin(), m_triggerMenuName.begin()
+            + xmlPos + 1);
+
+    xmlPos = m_triggerMenuName.find_last_of(".");
+    m_triggerMenuName.erase(m_triggerMenuName.begin() + xmlPos, m_triggerMenuName.end());
+    
+    // error handler for xml-parser
+    m_xmlErrHandler = 0;
+
+
+   // LogTrace("TriggerMenuXmlParser") << "\nOpening XML-File V2: \n  " << defXmlFile << std::endl;
+
+  LogDebug("l1t|Global") << "\nOpening XML-File V2: \n  " << defXmlFile << std::endl;
+  
+  using namespace tmeventsetup;
+  using namespace Algorithm;
+  
+  const esTriggerMenu* menu = tmeventsetup::getTriggerMenu(defXmlFile);
+
+
+  //get the meta data
+  m_triggerMenuDescription = menu->getComment();
+  m_triggerMenuDate = menu->getDatetime();
+  m_triggerMenuImplementation = menu->getFirmwareUuid(); //BLW: correct descriptor?
+  m_triggerMenuName = menu->getName();
+  m_triggerMenuInterface = menu->getVersion(); //BLW: correct descriptor?
+
+  const std::map<long, esAlgorithm*>& algoMap = menu->getAlgorithmMap();
+  const std::map<long, esCondition*>& condMap = menu->getConditionMap();
+//  const std::map<std::string, esScale*>& scaleMap = menu->getScaleMap();
+
+  for (std::map<long, esAlgorithm*>::const_iterator cit = algoMap.begin();
+       cit != algoMap.end(); cit++)
+  {
+    //condition chip (artifact)  TO DO: Update
+    int chipNr = 0;
+  
+    //get algorithm
+    const esAlgorithm* algo = cit->second;
+
+    //parse the algorithm
+    parseAlgorithmV2(*algo,chipNr);
+
+    //get conditions for this algorithm
+    const std::vector<std::string>& rpn_vec = algo->getRpnVector();
+    for (size_t ii = 0; ii < rpn_vec.size(); ii++)
+    {
+      const std::string& token = rpn_vec.at(ii);
+      if (isGate(token)) continue;
+      long hash = menu->getHash(token);
+      const esCondition* condition = condMap.find(hash)->second;
+     
+      //check to see if this condtion already exists
+      if ((m_conditionMap[chipNr]).count(condition->getName()) == 0) {
+     	  
+	  // parse Calo Conditions (EG, Jets, Taus)      
+	  if(condition->getType() == esConditionType::SingleEgamma || 
+             condition->getType() == esConditionType::DoubleEgamma ||
+	     condition->getType() == esConditionType::TripleEgamma ||
+	     condition->getType() == esConditionType::QuadEgamma   ||
+	     condition->getType() == esConditionType::SingleTau    ||
+	     condition->getType() == esConditionType::DoubleTau    ||
+	     condition->getType() == esConditionType::TripleTau    ||
+	     condition->getType() == esConditionType::QuadTau      ||
+	     condition->getType() == esConditionType::SingleJet    ||
+	     condition->getType() == esConditionType::DoubleJet    ||
+	     condition->getType() == esConditionType::TripleJet    ||
+	     condition->getType() == esConditionType::QuadJet      ) 
+	  {
+             parseCaloV2(*condition,chipNr,false);
+
+	  // parse Energy Sums	 
+	  } else if(condition->getType() == esConditionType::TotalEt ||
+                    condition->getType() == esConditionType::TotalHt ||
+		    condition->getType() == esConditionType::MissingEt ||
+		    condition->getType() == esConditionType::MissingHt )
+	  {
+             parseEnergySumV2(*condition,chipNr,false); 	
+
+	  //parse Muons	 	
+	  } else if(condition->getType() == esConditionType::SingleMuon    ||
+	            condition->getType() == esConditionType::DoubleMuon    ||
+	            condition->getType() == esConditionType::TripleMuon    ||
+	            condition->getType() == esConditionType::QuadMuon      )       
+	  {
+             parseMuonV2(*condition,chipNr,false);
+
+	  //parse Correlation Conditions	 	
+	  } else if(condition->getType() == esConditionType::MuonMuonCorrelation    ||
+	            condition->getType() == esConditionType::MuonEsumCorrelation    ||
+	            condition->getType() == esConditionType::CaloMuonCorrelation    ||
+	            condition->getType() == esConditionType::CaloCaloCorrelation    ||
+		    condition->getType() == esConditionType::CaloEsumCorrelation    ||
+		    condition->getType() == esConditionType::InvariantMass )       
+	  {
+             parseCorrelationV2(*condition,chipNr);
+	  }      
+      
+      }//if condition is a new one
+    }//loop over conditions
+  }//loop over algorithms
+
+  return;
+
+
+}
+
+
 
 //
 
@@ -1441,14 +1592,20 @@ std::string l1t::TriggerMenuXmlParser::l1tDateTime2string( l1t::DateTime date ){
   //ss << data;
   return ss.str();
 }
-int l1t::TriggerMenuXmlParser::l1t2int( l1t::RelativeBx data ){
+int l1t::TriggerMenuXmlParser::l1t2int( l1t::RelativeBx data ){  //l1t::RelativeBx
   std::stringstream ss;
   ss << data;
   int value;
   ss >> value;
   return value;
 }
-
+int l1t::TriggerMenuXmlParser::l1tstr2int( const std::string data ){ 
+  std::stringstream ss;
+  ss << data;
+  int value;
+  ss >> value;
+  return value;
+}
 
 
 /**
@@ -1659,13 +1816,13 @@ bool l1t::TriggerMenuXmlParser::parseMuon(l1t::MuonCondition condMu,
 	cntPhi++;
       }
 
-      objParameter[cnt].etaWindow1Lower = etaWindow1Lower;
-      objParameter[cnt].etaWindow1Upper = etaWindow1Upper;
+      objParameter[cnt].etaWindow1Lower     = etaWindow1Lower;
+      objParameter[cnt].etaWindow1Upper     = etaWindow1Upper;
       objParameter[cnt].etaWindow2Lower = etaWindow2Lower;
       objParameter[cnt].etaWindow2Upper = etaWindow2Upper;
 
-      objParameter[cnt].phiWindow1Lower = phiWindow1Lower;
-      objParameter[cnt].phiWindow1Upper = phiWindow1Upper;
+      objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+      objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
       objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
       objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
 
@@ -1678,13 +1835,13 @@ bool l1t::TriggerMenuXmlParser::parseMuon(l1t::MuonCondition condMu,
 	<< std::hex << objParameter[cnt].etaRange << std::dec
 	// << "\n      phiRange (hex) for muon object " << cnt << " = "
 	// << std::hex << objParameter[cnt].phiRange << std::dec
-	<< "\n      etaWindow1 Lower / Upper for muon object " << cnt << " = "
+	<< "\n      etaWindow Lower / Upper for muon object " << cnt << " = "
 	<< objParameter[cnt].etaWindow1Lower << " / " << objParameter[cnt].etaWindow1Upper
-	<< "\n      etaWindow2 Lower / Upper for muon object " << cnt << " = "
+	<< "\n      etaWindowVeto Lower / Upper for muon object " << cnt << " = "
 	<< objParameter[cnt].etaWindow2Lower << " / " << objParameter[cnt].etaWindow2Upper
-	<< "\n      phiWindow1 Lower / Upper for muon object " << cnt << " = "
+	<< "\n      phiWindow Lower / Upper for muon object " << cnt << " = "
 	<< objParameter[cnt].phiWindow1Lower << " / " << objParameter[cnt].phiWindow1Upper
-	<< "\n      phiWindow2 Lower / Upper for muon object " << cnt << " = "
+	<< "\n      phiWindowVeto Lower / Upper for muon object " << cnt << " = "
 	<< objParameter[cnt].phiWindow2Lower << " / " << objParameter[cnt].phiWindow2Upper
 	<< std::endl;
 
@@ -1823,6 +1980,283 @@ bool l1t::TriggerMenuXmlParser::parseMuon(l1t::MuonCondition condMu,
     //
     return true;
 }
+
+/**
+ * parseMuon Parse a muon condition and insert an entry to the conditions map
+ *
+ * @param node The corresponding node.
+ * @param name The name of the condition.
+ * @param chipNr The number of the chip this condition is located.
+ *
+ * @return "true" if succeeded, "false" if an error occurred.
+ *
+ */
+
+bool l1t::TriggerMenuXmlParser::parseMuonV2(tmeventsetup::esCondition condMu,
+        unsigned int chipNr, const bool corrFlag) {
+
+
+//    XERCES_CPP_NAMESPACE_USE
+    using namespace tmeventsetup;
+
+    // get condition, particle name (must be muon) and type name
+    std::string condition = "muon";
+    std::string particle = "muon";//l1t2string( condMu.objectType() );
+    std::string type = l1t2string( condMu.getType() );
+    std::string name = l1t2string( condMu.getName() );
+    int nrObj = -1;
+
+    if (condMu.getType() == esConditionType::SingleMuon) {
+	type = "1_s";
+	nrObj = 1;
+    } else if (condMu.getType() == esConditionType::DoubleMuon) {
+	type = "2_s";
+	nrObj = 2;	
+    } else if (condMu.getType() == esConditionType::TripleMuon) {
+	type = "3";
+	nrObj = 3;
+    } else if (condMu.getType() == esConditionType::QuadMuon) {
+	type = "4";
+	nrObj = 4;
+    } else {
+        edm::LogError("TriggerMenuXmlParser") << "Wrong type for muon-condition ("
+            << type << ")" << std::endl;
+        return false;
+    }
+
+
+    if (nrObj < 0) {
+        edm::LogError("TriggerMenuXmlParser") << "Unknown type for muon-condition (" << type
+            << ")" << "\nCan not determine number of trigger objects. " << std::endl;
+        return false;
+    }
+
+    LogDebug("l1t|Global")
+      << "\n ****************************************** "
+      << "\n      parseMuon  "
+      << "\n condition = " << condition
+      << "\n particle  = " << particle
+      << "\n type      = " << type
+      << "\n name      = " << name
+      << std::endl;
+
+
+
+//     // get values
+
+    // temporary storage of the parameters
+    std::vector<MuonTemplate::ObjectParameter> objParameter(nrObj);
+    
+    // Do we need this?
+    MuonTemplate::CorrelationParameter corrParameter;
+
+    // need at least two values for deltaPhi
+    std::vector<boost::uint64_t> tmpValues((nrObj > 2) ? nrObj : 2);
+    tmpValues.reserve( nrObj );
+
+    if( int(condMu.getObjects().size())!=nrObj ){
+      edm::LogError("TriggerMenuXmlParser") << " condMu objects: nrObj = " << nrObj
+					    << "condMu.getObjects().size() = " 
+					    << condMu.getObjects().size()
+					    << std::endl;
+      return false;
+    }
+
+
+// BLW TO DO: How do we deal with these in the new format    
+//    std::string str_chargeCorrelation = l1t2string( condMu.requestedChargeCorr() );
+    std::string str_chargeCorrelation = "ig";
+    unsigned int chargeCorrelation = 0;
+    if( str_chargeCorrelation=="ig" )      chargeCorrelation = 1;
+    else if( str_chargeCorrelation=="ls" ) chargeCorrelation = 2;
+    else if( str_chargeCorrelation=="os" ) chargeCorrelation = 4;
+
+    //getXMLHexTextValue("1", dst);
+    corrParameter.chargeCorrelation = chargeCorrelation;//tmpValues[0];
+
+
+    int cnt = 0;
+
+
+// BLW TO DO: These needs to the added to the object rather than the whole condition.
+    int relativeBx = 0;
+    bool gEq = false;
+    
+// Loop over objects and extract the cuts on the objects
+    const std::vector<esObject*>& objects = condMu.getObjects();
+    for (size_t jj = 0; jj < objects.size(); jj++) {   
+
+       const esObject* object = objects.at(jj);
+       gEq =  (object->getComparisonOperator() == esComparisonOperator::GE);
+
+//  BLW TO DO: This needs to be added to the Object Parameters   
+       relativeBx = object->getBxOffset();
+
+//  Loop over the cuts for this object
+        int upperThresholdInd = -1;
+	int lowerThresholdInd = 0;
+        int cntEta = 0;
+        unsigned int etaWindow1Lower=-1, etaWindow1Upper=-1, etaWindow2Lower=-1, etaWindow2Upper=-1;
+	int cntPhi = 0;
+	unsigned int phiWindow1Lower=-1, phiWindow1Upper=-1, phiWindow2Lower=-1, phiWindow2Upper=-1;
+        int isolationLUT = 0xF; //default is to ignore unless specified.
+	int charge = 0;
+	int qualityLUT = 0xF; //default is to ignore unless specified.		
+	
+        const std::vector<esCut*>& cuts = object->getCuts();
+        for (size_t kk = 0; kk < cuts.size(); kk++)
+        {
+          const esCut* cut = cuts.at(kk); 
+	 
+	  switch(cut->getCutType()){
+	     case esCutType::Threshold:
+	       lowerThresholdInd = cut->getMinimum().index;
+	       upperThresholdInd = cut->getMaximum().index;
+	       break;
+	       
+	     case esCutType::Eta: {
+	       
+                 if(cntEta == 0) {
+		    etaWindow1Lower = cut->getMinimum().index;
+		    etaWindow1Upper = cut->getMaximum().index;
+		 } else if(cntEta == 1) {
+		    etaWindow2Lower = cut->getMinimum().index;
+		    etaWindow2Upper = cut->getMaximum().index;
+                 } else {
+        	   edm::LogError("TriggerMenuXmlParser") << "Too Many Eta Cuts for muon-condition ("
+        	       << particle << ")" << std::endl;
+        	   return false;
+		 }
+		 cntEta++; 
+
+	       } break;
+	       
+	     case esCutType::Phi: {
+
+                if(cntPhi == 0) {
+		    phiWindow1Lower = cut->getMinimum().index;
+		    phiWindow1Upper = cut->getMaximum().index;
+		 } else if(cntPhi == 1) {
+		    phiWindow2Lower = cut->getMinimum().index;
+		    phiWindow2Upper = cut->getMaximum().index;
+                 } else {
+        	   edm::LogError("TriggerMenuXmlParser") << "Too Many Phi Cuts for muon-condition ("
+        	       << particle << ")" << std::endl;
+        	   return false;
+		 }
+		 cntPhi++; 
+
+	       }break;
+	       
+	     case esCutType::Charge:
+	       // charge = cut->get ???  //BLW TO DO: What do we do here.
+	       break;
+	     case esCutType::Quality:
+	     
+                qualityLUT = l1tstr2int(cut->getData());
+	     
+	       break;
+	     case esCutType::Isolation: {
+
+                isolationLUT = l1tstr2int(cut->getData());
+		       
+	       } break;
+	     default:
+	       break; 	       	       	       	       
+	  } //end switch 
+	  
+        } //end loop over cuts
+
+
+// Set the parameter cuts
+	objParameter[cnt].ptHighThreshold = upperThresholdInd;
+	objParameter[cnt].ptLowThreshold  = lowerThresholdInd;
+
+	objParameter[cnt].etaWindow1Lower     = etaWindow1Lower;
+	objParameter[cnt].etaWindow1Upper     = etaWindow1Upper;
+	objParameter[cnt].etaWindow2Lower = etaWindow2Lower;
+	objParameter[cnt].etaWindow2Upper = etaWindow2Upper;
+
+	objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+	objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
+	objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
+	objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
+
+// BLW TO DO: Do we need these anymore?  Drop them?   
+        objParameter[cnt].enableMip = false;//tmpMip[i];
+        objParameter[cnt].enableIso = false;//tmpEnableIso[i];
+        objParameter[cnt].requestIso = false;//tmpRequestIso[i];
+
+        objParameter[cnt].charge = charge;
+        objParameter[cnt].qualityLUT = qualityLUT;
+        objParameter[cnt].isolationLUT = isolationLUT;
+
+
+        cnt++;
+    } //end loop over objects	
+
+
+    // get the type of the condition, as defined in enum, from the condition type
+    // as defined in the XML file
+    // BLW TO DO: What the heck is this for?
+    GtConditionType cType = getTypeFromType(type);
+    //LogTrace("TriggerMenuXmlParser")
+    //<< "      Condition type (enum value) = " << cType
+    //<< std::endl;
+
+    if (cType == l1t::TypeNull) {
+        edm::LogError("TriggerMenuXmlParser")
+            << "Type for muon condition id l1t::TypeNull - it means not defined in the XML file."
+            << "\nNumber of trigger objects is set to zero. " << std::endl;
+        return false;
+    }
+
+    // object types - all muons
+    std::vector<L1GtObject> objType(nrObj, Mu);
+
+
+
+    // now create a new CondMuonition
+    MuonTemplate muonCond(name);
+
+    muonCond.setCondType(cType);
+    muonCond.setObjectType(objType);
+    muonCond.setCondGEq(gEq);
+    muonCond.setCondChipNr(chipNr);
+    muonCond.setCondRelativeBx(relativeBx);
+
+    muonCond.setConditionParameter(objParameter, corrParameter);
+
+    if (edm::isDebugEnabled()) {
+        std::ostringstream myCoutStream;
+        muonCond.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n" << std::endl;
+    }
+
+    // insert condition into the map and into muon template vector
+    if ( !insertConditionIntoMap(muonCond, chipNr)) {
+        edm::LogError("TriggerMenuXmlParser")
+                << "    Error: duplicate condition (" << name << ")"
+                << std::endl;
+        return false;
+    }
+    else {
+        LogDebug("l1t|Global") << "Added Condition " << name << " to the ConditionMap" << std::endl;
+        if (corrFlag) {
+	    LogDebug("l1t|Global") << "Added Condition " << name << " to the corMuonTemplate vector" << std::endl;
+            (m_corMuonTemplate[chipNr]).push_back(muonCond);
+        }
+        else {
+	    LogDebug("l1t|Global") << "Added Condition " << name << " to the vecMuonTemplate vector" << std::endl;
+            (m_vecMuonTemplate[chipNr]).push_back(muonCond);
+        }
+
+    }
+
+    //
+    return true;
+}
+
 
 /**
  * parseCalo Parse a calo condition and insert an entry to the conditions map
@@ -2003,13 +2437,13 @@ bool l1t::TriggerMenuXmlParser::parseCalo(l1t::CalorimeterCondition condCalo,
 	cntPhi++;
       }
 
-      objParameter[cnt].etaWindow1Lower = etaWindow1Lower;
-      objParameter[cnt].etaWindow1Upper = etaWindow1Upper;
+      objParameter[cnt].etaWindow1Lower     = etaWindow1Lower;
+      objParameter[cnt].etaWindow1Upper     = etaWindow1Upper;
       objParameter[cnt].etaWindow2Lower = etaWindow2Lower;
       objParameter[cnt].etaWindow2Upper = etaWindow2Upper;
 
-      objParameter[cnt].phiWindow1Lower = phiWindow1Lower;
-      objParameter[cnt].phiWindow1Upper = phiWindow1Upper;
+      objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+      objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
       objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
       objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
 
@@ -2022,13 +2456,13 @@ bool l1t::TriggerMenuXmlParser::parseCalo(l1t::CalorimeterCondition condCalo,
 	<< std::hex << objParameter[cnt].etaRange << std::dec
 	<< "\n      phiRange (hex) for calo object " << cnt << " = "
 	<< std::hex << objParameter[cnt].phiRange << std::dec
-	<< "\n      etaWindow1 Lower / Upper for calo object " << cnt << " = "
+	<< "\n      etaWindow Lower / Upper for calo object " << cnt << " = "
 	<< objParameter[cnt].etaWindow1Lower << " / " << objParameter[cnt].etaWindow1Upper
-	<< "\n      etaWindow2 Lower / Upper for calo object " << cnt << " = "
+	<< "\n      etaWindowVeto Lower / Upper for calo object " << cnt << " = "
 	<< objParameter[cnt].etaWindow2Lower << " / " << objParameter[cnt].etaWindow2Upper
-	<< "\n      phiWindow1 Lower / Upper for calo object " << cnt << " = "
+	<< "\n      phiWindow Lower / Upper for calo object " << cnt << " = "
 	<< objParameter[cnt].phiWindow1Lower << " / " << objParameter[cnt].phiWindow1Upper
-	<< "\n      phiWindow2 Lower / Upper for calo object " << cnt << " = "
+	<< "\n      phiWindowVeto Lower / Upper for calo object " << cnt << " = "
 	<< objParameter[cnt].phiWindow2Lower << " / " << objParameter[cnt].phiWindow2Upper
 	<< std::endl;
 
@@ -2171,6 +2605,337 @@ bool l1t::TriggerMenuXmlParser::parseCalo(l1t::CalorimeterCondition condCalo,
     return true;
 }
 
+
+/**
+ * parseCalo Parse a calo condition and insert an entry to the conditions map
+ *
+ * @param node The corresponding node.
+ * @param name The name of the condition.
+ * @param chipNr The number of the chip this condition is located.
+ *
+ * @return "true" if succeeded, "false" if an error occurred.
+ *
+ */
+
+bool l1t::TriggerMenuXmlParser::parseCaloV2(tmeventsetup::esCondition condCalo,
+        unsigned int chipNr, const bool corrFlag) {
+
+
+//    XERCES_CPP_NAMESPACE_USE
+    using namespace tmeventsetup;
+    
+    // get condition, particle name and type name
+
+    std::string condition = "calo";
+    std::string particle = "test-fix" ;
+    std::string type = l1t2string( condCalo.getType() );
+    std::string name = l1t2string( condCalo.getName() );
+
+    LogDebug("l1t|Global")
+      << "\n ****************************************** " 
+      << "\n      (in parseCaloV2) " 
+      << "\n condition = " << condition 
+      << "\n particle  = " << particle 
+      << "\n type      = " << type 
+      << "\n name      = " << name 
+      << std::endl;
+
+
+    // determine object type type
+    // BLW TO DO:  Can this object type wait and be done later in the parsing. Or done differently completely..
+    L1GtObject caloObjType;
+    int nrObj = -1;
+
+    if (condCalo.getType() == esConditionType::SingleEgamma) {
+        caloObjType = NoIsoEG;
+	type = "1_s";
+	nrObj = 1;
+    } else if (condCalo.getType() == esConditionType::DoubleEgamma) {
+        caloObjType = NoIsoEG;
+	type = "2_s";
+	nrObj = 2;	
+    } else if (condCalo.getType() == esConditionType::TripleEgamma) {
+        caloObjType = NoIsoEG;
+	type = "3";
+	nrObj = 3;
+    } else if (condCalo.getType() == esConditionType::QuadEgamma) {
+        caloObjType = NoIsoEG;
+	type = "4";
+	nrObj = 4;
+    } else if (condCalo.getType() == esConditionType::SingleJet) {
+        caloObjType = CenJet;
+	type = "1_s";
+	nrObj = 1;
+    } else if (condCalo.getType() == esConditionType::DoubleJet) {
+        caloObjType = CenJet;
+	type = "2_s";
+	nrObj = 2;	
+    } else if (condCalo.getType() == esConditionType::TripleJet) {
+        caloObjType = CenJet;
+	type = "3";
+	nrObj = 3;
+    } else if (condCalo.getType() == esConditionType::QuadJet) {
+        caloObjType = CenJet;
+	type = "4";
+	nrObj = 4;			
+    } else if (condCalo.getType() == esConditionType::SingleTau) {
+        caloObjType = TauJet;
+	type = "1_s";
+	nrObj = 1;
+    } else if (condCalo.getType() == esConditionType::DoubleTau) {
+        caloObjType = TauJet;
+	type = "2_s";
+	nrObj = 2;	
+    } else if (condCalo.getType() == esConditionType::TripleTau) {
+        caloObjType = TauJet;
+	type = "3";
+	nrObj = 3;
+    } else if (condCalo.getType() == esConditionType::QuadTau) {
+        caloObjType = TauJet;
+	type = "4";
+	nrObj = 4;		
+    } else {
+        edm::LogError("TriggerMenuXmlParser") << "Wrong particle for calo-condition ("
+            << particle << ")" << std::endl;
+        return false;
+    }
+
+//    std::string str_etComparison = l1t2string( condCalo.comparison_operator() );
+
+    if (nrObj < 0) {
+        edm::LogError("TriggerMenuXmlParser") << "Unknown type for calo-condition (" << type
+            << ")" << "\nCan not determine number of trigger objects. " << std::endl;
+        return false;
+    }
+
+    // get values
+
+    // temporary storage of the parameters
+    std::vector<CaloTemplate::ObjectParameter> objParameter(nrObj);
+
+    //BLW TO DO:  Can this be dropped?
+    CaloTemplate::CorrelationParameter corrParameter;
+
+    // need at least one value for deltaPhiRange
+    std::vector<boost::uint64_t> tmpValues((nrObj > 1) ? nrObj : 1);
+    tmpValues.reserve( nrObj );
+
+
+    if( int(condCalo.getObjects().size())!=nrObj ){
+      edm::LogError("TriggerMenuXmlParser") << " condCalo objects: nrObj = " << nrObj
+						    << "condCalo.getObjects().size() = " 
+						    << condCalo.getObjects().size()
+						    << std::endl;
+      return false;
+    }
+
+
+//    std::string str_condCalo = "";
+//    boost::uint64_t tempUIntH, tempUIntL;
+//    boost::uint64_t dst;
+    int cnt = 0;
+
+// BLW TO DO: These needs to the added to the object rather than the whole condition.
+    int relativeBx = 0;
+    bool gEq = false;
+    
+// Loop over objects and extract the cuts on the objects
+    const std::vector<esObject*>& objects = condCalo.getObjects();
+    for (size_t jj = 0; jj < objects.size(); jj++) {   
+
+       const esObject* object = objects.at(jj);
+       gEq =  (object->getComparisonOperator() == esComparisonOperator::GE);
+
+//  BLW TO DO: This needs to be added to the Object Parameters   
+       relativeBx = object->getBxOffset();
+
+//  Loop over the cuts for this object
+        int thresholdInd = 0;
+        int cntEta = 0;
+        unsigned int etaWindow1Lower=-1, etaWindow1Upper=-1, etaWindow2Lower=-1, etaWindow2Upper=-1;
+	int cntPhi = 0;
+	unsigned int phiWindow1Lower=-1, phiWindow1Upper=-1, phiWindow2Lower=-1, phiWindow2Upper=-1;
+        int isolationLUT = 0xF; //default is to ignore isolation unless specified.
+	int qualityLUT   = 0xF; //default is to ignore quality unless specified.	
+		
+	
+        const std::vector<esCut*>& cuts = object->getCuts();
+        for (size_t kk = 0; kk < cuts.size(); kk++)
+        {
+          const esCut* cut = cuts.at(kk); 
+	 
+	  switch(cut->getCutType()){
+	     case esCutType::Threshold:
+	       thresholdInd = cut->getMinimum().index;
+	       break;
+	     case esCutType::Eta: {
+	       
+                 if(cntEta == 0) {
+		    etaWindow1Lower = cut->getMinimum().index;
+		    etaWindow1Upper = cut->getMaximum().index;
+		 } else if(cntEta == 1) {
+		    etaWindow2Lower = cut->getMinimum().index;
+		    etaWindow2Upper = cut->getMaximum().index;
+                 } else {
+        	   edm::LogError("TriggerMenuXmlParser") << "Too Many Eta Cuts for calo-condition ("
+        	       << particle << ")" << std::endl;
+        	   return false;
+		 }
+		 cntEta++; 
+
+	       } break;
+	       
+	     case esCutType::Phi: {
+
+                if(cntPhi == 0) {
+		    phiWindow1Lower = cut->getMinimum().index;
+		    phiWindow1Upper = cut->getMaximum().index;
+		 } else if(cntPhi == 1) {
+		    phiWindow2Lower = cut->getMinimum().index;
+		    phiWindow2Upper = cut->getMaximum().index;
+                 } else {
+        	   edm::LogError("TriggerMenuXmlParser") << "Too Many Phi Cuts for calo-condition ("
+        	       << particle << ")" << std::endl;
+        	   return false;
+		 }
+		 cntPhi++; 
+
+	       }break;
+	       
+	     case esCutType::Charge: {
+
+       	         edm::LogError("TriggerMenuXmlParser") << "No charge cut for calo-condition ("
+        	       << particle << ")" << std::endl;
+        	   return false;
+
+	       }break;
+	     case esCutType::Quality: {
+             
+	       qualityLUT = l1tstr2int(cut->getData());
+
+	       }break;
+	     case esCutType::Isolation: {
+
+               isolationLUT = l1tstr2int(cut->getData());
+		       
+	       } break;
+	     default:
+	       break; 	       	       	       	       
+	  } //end switch 
+	  
+        } //end loop over cuts
+
+// Fill the object parameters
+        objParameter[cnt].etThreshold        = thresholdInd;
+	objParameter[cnt].etaWindow1Lower     = etaWindow1Lower;
+	objParameter[cnt].etaWindow1Upper     = etaWindow1Upper;
+	objParameter[cnt].etaWindow2Lower = etaWindow2Lower;
+	objParameter[cnt].etaWindow2Upper = etaWindow2Upper;
+	objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+	objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
+	objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
+	objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
+        objParameter[cnt].isolationLUT       = isolationLUT;
+        objParameter[cnt].qualityLUT         = qualityLUT; //TO DO: Must add 
+
+      // Output for debugging
+      LogDebug("l1t|Global") 
+	<< "\n      Calo ET high threshold (hex) for calo object " << caloObjType << " " << cnt << " = "
+	<< std::hex << objParameter[cnt].etThreshold << std::dec
+	<< "\n      etaWindow (hex) for calo object " << cnt << " = "
+	<< std::hex << objParameter[cnt].etaRange << std::dec
+	<< "\n      phiRange (hex) for calo object " << cnt << " = "
+	<< std::hex << objParameter[cnt].phiRange << std::dec
+	<< "\n      etaWindow Lower / Upper for calo object " << cnt << " = "
+	<< objParameter[cnt].etaWindow1Lower << " / " << objParameter[cnt].etaWindow1Upper
+	<< "\n      etaWindowVeto Lower / Upper for calo object " << cnt << " = "
+	<< objParameter[cnt].etaWindow2Lower << " / " << objParameter[cnt].etaWindow2Upper
+	<< "\n      phiWindow Lower / Upper for calo object " << cnt << " = "
+	<< objParameter[cnt].phiWindow1Lower << " / " << objParameter[cnt].phiWindow1Upper
+	<< "\n      phiWindowVeto Lower / Upper for calo object " << cnt << " = "
+	<< objParameter[cnt].phiWindow2Lower << " / " << objParameter[cnt].phiWindow2Upper
+	<< "\n      Isolation LUT for calo object " << cnt << " = "
+	<< objParameter[cnt].isolationLUT
+	<< "\n      Quality LUT for calo object " << cnt << " = "
+	<< objParameter[cnt].qualityLUT
+	<< std::endl;
+
+      cnt++;
+    } //end loop over objects
+
+
+
+    // get the type of the condition, as defined in enum, from the condition type
+    // as defined in the XML file
+    GtConditionType cType = getTypeFromType(type);
+    LogTrace("TriggerMenuXmlParser")
+      << "      Condition type (enum value) = " << cType
+      << std::endl;
+
+    if (cType == l1t::TypeNull) {
+        edm::LogError("TriggerMenuXmlParser")
+            << "Type for calo condition id l1t::TypeNull - it means not defined in the XML file."
+            << "\nNumber of trigger objects is set to zero. " << std::endl;
+        return false;
+    }
+
+    // object types - all same caloObjType
+    std::vector<L1GtObject> objType(nrObj, caloObjType);
+
+
+    
+
+    // now create a new calo condition
+    CaloTemplate caloCond(name);
+
+    caloCond.setCondType(cType);
+    caloCond.setObjectType(objType);
+    
+    //BLW TO DO: This needs to be added to the object rather than the whole condition
+    caloCond.setCondGEq(gEq);
+    caloCond.setCondChipNr(chipNr);
+    
+    //BLW TO DO: This needs to be added to the object rather than the whole condition
+    caloCond.setCondRelativeBx(relativeBx);
+
+    caloCond.setConditionParameter(objParameter, corrParameter);
+
+    if (edm::isDebugEnabled() ) {
+
+        std::ostringstream myCoutStream;
+        caloCond.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n" << std::endl;
+
+    }
+
+
+    // insert condition into the map
+    if ( !insertConditionIntoMap(caloCond, chipNr)) {
+
+        edm::LogError("TriggerMenuXmlParser")
+                << "    Error: duplicate condition (" << name << ")"
+                << std::endl;
+
+        return false;
+    }
+    else {
+
+        if (corrFlag) {
+            (m_corCaloTemplate[chipNr]).push_back(caloCond);
+       }
+        else {
+            (m_vecCaloTemplate[chipNr]).push_back(caloCond);
+        }
+
+    }
+
+
+    //
+    return true;
+}
+
+
+
 /**
  * parseEnergySum Parse an "energy sum" condition and insert an entry to the conditions map
  *
@@ -2275,8 +3040,8 @@ bool l1t::TriggerMenuXmlParser::parseEnergySum(l1t::EnergySumsCondition condEner
       cntPhi++;
     }
 
-    objParameter[cnt].phiWindow1Lower = phiWindow1Lower;
-    objParameter[cnt].phiWindow1Upper = phiWindow1Upper;
+    objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+    objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
     objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
     objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
 
@@ -2285,9 +3050,9 @@ bool l1t::TriggerMenuXmlParser::parseEnergySum(l1t::EnergySumsCondition condEner
     LogDebug("l1t|Global") 
       << "\n      EnergySum ET high threshold (hex) for energy sum object " << cnt << " = "
       << std::hex << objParameter[cnt].etThreshold << std::dec
-      << "\n      phiWindow1 Lower / Upper for calo object " << cnt << " = "
+      << "\n      phiWindow Lower / Upper for calo object " << cnt << " = "
       << objParameter[cnt].phiWindow1Lower << " / " << objParameter[cnt].phiWindow1Upper
-      << "\n      phiWindow2 Lower / Upper for calo object " << cnt << " = "
+      << "\n      phiWindowVeto Lower / Upper for calo object " << cnt << " = "
       << objParameter[cnt].phiWindow2Lower << " / " << objParameter[cnt].phiWindow2Upper
       << std::endl;
 
@@ -2435,6 +3200,217 @@ bool l1t::TriggerMenuXmlParser::parseEnergySum(l1t::EnergySumsCondition condEner
     //
     return true;
 }
+
+/**
+ * parseEnergySum Parse an "energy sum" condition and insert an entry to the conditions map
+ *
+ * @param node The corresponding node.
+ * @param name The name of the condition.
+ * @param chipNr The number of the chip this condition is located.
+ *
+ * @return "true" if succeeded, "false" if an error occurred.
+ *
+ */
+
+bool l1t::TriggerMenuXmlParser::parseEnergySumV2(tmeventsetup::esCondition condEnergySum,
+        unsigned int chipNr, const bool corrFlag) {
+
+
+//    XERCES_CPP_NAMESPACE_USE
+     using namespace tmeventsetup;
+     
+    // get condition, particle name and type name
+
+    std::string condition = "calo";
+    std::string type = l1t2string( condEnergySum.getType() );
+    std::string name = l1t2string( condEnergySum.getName() );
+
+    LogDebug("l1t|Global")
+      << "\n ****************************************** " 
+      << "\n      (in parseEnergySumV2) " 
+      << "\n condition = " << condition 
+      << "\n type      = " << type 
+      << "\n name      = " << name 
+      << std::endl;
+
+
+
+    // determine object type type
+    L1GtObject energySumObjType;
+    GtConditionType cType;
+
+    if( condEnergySum.getType() == esConditionType::MissingEt ){
+      energySumObjType = L1GtObject::ETM;
+      cType = TypeETM;
+    }
+    else if( condEnergySum.getType() == esConditionType::TotalEt ){
+      energySumObjType = L1GtObject::ETT;
+      cType = TypeETT;
+    }
+    else if( condEnergySum.getType() == esConditionType::TotalHt ){
+      energySumObjType = L1GtObject::HTT;
+      cType = TypeHTT;
+    }
+    else if( condEnergySum.getType() == esConditionType::MissingHt ){
+      energySumObjType = L1GtObject::HTM;
+      cType = TypeHTM;
+    }
+    else {
+      edm::LogError("TriggerMenuXmlParser")
+	<< "Wrong type for energy-sum condition (" << type
+	<< ")" << std::endl;
+      return false;
+    }
+
+
+
+    // global object
+    int nrObj = 1;
+
+//    std::string str_etComparison = l1t2string( condEnergySum.comparison_operator() );
+
+    // get values
+
+    // temporary storage of the parameters
+    std::vector<EnergySumTemplate::ObjectParameter> objParameter(nrObj);
+
+
+    int cnt = 0;
+
+// BLW TO DO: These needs to the added to the object rather than the whole condition.
+    int relativeBx = 0;
+    bool gEq = false;
+    
+//    l1t::EnergySumsObjectRequirement objPar = condEnergySum.objectRequirement();
+
+// Loop over objects and extract the cuts on the objects
+    const std::vector<esObject*>& objects = condEnergySum.getObjects();
+    for (size_t jj = 0; jj < objects.size(); jj++) {   
+
+       const esObject* object = objects.at(jj);
+       gEq =  (object->getComparisonOperator() == esComparisonOperator::GE);
+
+//  BLW TO DO: This needs to be added to the Object Parameters   
+       relativeBx = object->getBxOffset();
+
+//  Loop over the cuts for this object
+        int thresholdInd = 0;
+	int cntPhi = 0;
+	unsigned int phiWindow1Lower=-1, phiWindow1Upper=-1, phiWindow2Lower=-1, phiWindow2Upper=-1;
+		
+	
+        const std::vector<esCut*>& cuts = object->getCuts();
+        for (size_t kk = 0; kk < cuts.size(); kk++)
+        {
+          const esCut* cut = cuts.at(kk); 
+	 
+	  switch(cut->getCutType()){
+	     case esCutType::Threshold:
+	       thresholdInd = cut->getMinimum().index;
+	       break;
+
+	     case esCutType::Eta: 
+	       break;
+	       
+	     case esCutType::Phi: {
+
+                if(cntPhi == 0) {
+		    phiWindow1Lower = cut->getMinimum().index;
+		    phiWindow1Upper = cut->getMaximum().index;
+		 } else if(cntPhi == 1) {
+		    phiWindow2Lower = cut->getMinimum().index;
+		    phiWindow2Upper = cut->getMaximum().index;
+                 } else {
+        	   edm::LogError("TriggerMenuXmlParser") << "Too Many Phi Cuts for esum-condition ("
+        	       << type << ")" << std::endl;
+        	   return false;
+		 }
+		 cntPhi++; 
+
+	       }
+	       break;
+	       
+	     default:
+	       break; 	       	       	       	       
+	  } //end switch 
+	  
+        } //end loop over cuts
+
+
+
+    // Fill the object parameters
+    objParameter[cnt].etThreshold        = thresholdInd;
+    objParameter[cnt].phiWindow1Lower     = phiWindow1Lower;
+    objParameter[cnt].phiWindow1Upper     = phiWindow1Upper;
+    objParameter[cnt].phiWindow2Lower = phiWindow2Lower;
+    objParameter[cnt].phiWindow2Upper = phiWindow2Upper;
+
+      
+    // Output for debugging
+    LogDebug("l1t|Global") 
+      << "\n      EnergySum ET high threshold (hex) for energy sum object " << cnt << " = "
+      << std::hex << objParameter[cnt].etThreshold << std::dec
+      << "\n      phiWindow Lower / Upper for calo object " << cnt << " = "
+      << objParameter[cnt].phiWindow1Lower << " / " << objParameter[cnt].phiWindow1Upper
+      << "\n      phiWindowVeto Lower / Upper for calo object " << cnt << " = "
+      << objParameter[cnt].phiWindow2Lower << " / " << objParameter[cnt].phiWindow2Upper
+      << std::endl;
+
+      cnt++;
+    } //end loop over objects
+    
+    // object types - all same energySumObjType
+    std::vector<L1GtObject> objType(nrObj, energySumObjType);
+
+    // now create a new energySum condition
+
+    EnergySumTemplate energySumCond(name);
+
+    energySumCond.setCondType(cType);
+    energySumCond.setObjectType(objType);
+    energySumCond.setCondGEq(gEq);
+    energySumCond.setCondChipNr(chipNr);
+    energySumCond.setCondRelativeBx(relativeBx);
+
+    energySumCond.setConditionParameter(objParameter);
+
+    if (edm::isDebugEnabled() ) {
+
+        std::ostringstream myCoutStream;
+        energySumCond.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n" << std::endl;
+
+    }
+
+    // insert condition into the map
+    if ( !insertConditionIntoMap(energySumCond, chipNr)) {
+
+        edm::LogError("TriggerMenuXmlParser")
+                << "    Error: duplicate condition (" << name << ")"
+                << std::endl;
+
+        return false;
+    }
+    else {
+
+        if (corrFlag) {
+            (m_corEnergySumTemplate[chipNr]).push_back(energySumCond);
+
+        }
+        else {
+            (m_vecEnergySumTemplate[chipNr]).push_back(energySumCond);
+        }
+
+    }
+
+
+
+    //
+    return true;
+}
+
+
+
 
 /**
  * parseJetCounts Parse a "jet counts" condition and
@@ -3429,6 +4405,221 @@ bool l1t::TriggerMenuXmlParser::parseCorrelation(
     return true;
 }
 
+
+/**
+ * parseCorrelation Parse a correlation condition and
+ * insert an entry to the conditions map
+ *
+ * @param node The corresponding node.
+ * @param name The name of the condition.
+ * @param chipNr The number of the chip this condition is located.
+ *
+ * @return "true" if succeeded, "false" if an error occurred.
+ *
+ */
+
+bool l1t::TriggerMenuXmlParser::parseCorrelationV2(
+        tmeventsetup::esCondition corrCond,
+        unsigned int chipNr) {
+
+    using namespace tmeventsetup;
+
+    std::string condition = "calo";
+    std::string particle = "test-fix" ;
+    std::string type = l1t2string( corrCond.getType() );
+    std::string name = l1t2string( corrCond.getName() );
+
+    LogDebug("l1t|Global") << " ****************************************** " << std::endl
+     << "     (in parseCorrelation) " << std::endl
+     << " condition = " << condition << std::endl
+     << " particle  = " << particle << std::endl
+     << " type      = " << type << std::endl
+     << " name      = " << name << std::endl;
+
+
+   
+
+    // create a new correlation condition
+    CorrelationTemplate correlationCond(name);
+
+    // check that the condition does not exist already in the map
+    if ( !insertConditionIntoMap(correlationCond, chipNr)) {
+
+        edm::LogError("TriggerMenuXmlParser")
+                << "    Error: duplicate correlation condition (" << name << ")"
+                << std::endl;
+
+        return false;
+    }
+
+
+// Define some of the quantities to store the parased information
+
+    // condition type BLW  (Do we change this to the type of correlation condition?)
+    GtConditionType cType = l1t::Type2cor;
+
+    // two objects (for sure)
+    const int nrObj = 2;
+
+    // object types and greater equal flag - filled in the loop
+    int intGEq[nrObj] = { -1, -1 };
+    std::vector<L1GtObject> objType(nrObj);   //BLW do we want to define these as a different type?
+    std::vector<GtConditionCategory> condCateg(nrObj);   //BLW do we want to change these categories
+
+    // correlation flag and index in the cor*vector
+    const bool corrFlag = true;
+    int corrIndexVal[nrObj] = { -1, -1 };
+
+
+    // Storage of the correlation selection
+    CorrelationTemplate::CorrelationParameter corrParameter;
+
+// Get the correlation Cuts on the legs
+        
+      const std::vector<esCut*>& cuts = corrCond.getCuts();      
+      for (size_t jj = 0; jj < cuts.size(); jj++)
+      {
+        const esCut* cut = cuts.at(jj);
+        std::cout << "    cut name = " << cut->getName() << "\n";
+        std::cout << "    cut target = " << cut->getObjectType() << "\n";
+        std::cout << "    cut type = " << cut->getCutType() << "\n";
+        std::cout << "    cut min. value  index = " << cut->getMinimum().value << " " << cut->getMinimum().index << "\n";
+        std::cout << "    cut max. value  index = " << cut->getMaximum().value << " " << cut->getMaximum().index << "\n";
+        std::cout << "    cut data = " << cut->getData() << "\n";
+
+        corrParameter.corrCutType = cut->getCutType();
+	corrParameter.minCutValue = cut->getMinimum().value;
+	corrParameter.maxCutValue = cut->getMaximum().value;
+
+      }
+
+
+// Get the two objects that form the legs
+      const std::vector<esObject*>& objects = corrCond.getObjects();
+      if(objects.size() != 2) {
+            edm::LogError("TriggerMenuXmlParser")
+                    << "incorrect number of objects for the correlation condition " << name << std::endl;
+            return false;      
+      }
+      
+// loop over legs      
+      for (size_t jj = 0; jj < objects.size(); jj++)
+      {
+        const esObject* object = objects.at(jj);
+        std::cout << "      obj name = " << object->getName() << "\n";
+        std::cout << "      obj type = " << object->getType() << "\n";
+        std::cout << "      obj op = " << object->getComparisonOperator() << "\n";
+        std::cout << "      obj bx = " << object->getBxOffset() << "\n";
+
+// check the leg type
+        if(object->getType() == esObjectType::Muon) {
+	  // we have a muon
+
+	  
+	  // Form a simple condition for this leg, parse it so it goes into the map.
+	  esCondition* condition = new esCondition();
+	  condition->setName(object->getName());
+	  condition->setType(esConditionType::SingleMuon);
+	  esObject* condObject = (esObject*)object;
+	  condition->addObject(condObject);	  
+
+          //BLW Is there a problem here with not entering second instanance into the m_corMuonTemplate[]?
+          if ((m_conditionMap[chipNr]).count(condition->getName()) == 0) parseMuonV2(*condition,chipNr,corrFlag);
+
+          //Now set some flags for this subCondition
+	  intGEq[jj] = (object->getComparisonOperator() == esComparisonOperator::GE);
+          objType[jj] = Mu;
+          condCateg[jj] = CondMuon;
+          corrIndexVal[jj] = (m_corMuonTemplate[chipNr]).size() - 1;
+
+	  
+
+
+/*	  
+        } else if(object->getType() == esObjectType::Egamma) {
+	  // we have an EG object
+
+	  // Form a simple condition for this leg, parse it so it goes into the map.
+	  esCondition condition = esCondition();
+	  condition->setName(object->getName());
+	  condition->setType(esConditionType::SingleEgamma);
+	  condition->addObject(object);	  
+
+        } else if(object->getType() == esObjectType::Jet) {
+	  // we have an Jet object
+
+	  // Form a simple condition for this leg, parse it so it goes into the map.
+	  esCondition* condition = esCondition();
+	  condition->setName(object->getName());
+	  condition->setType(esConditionType::SingleJet);
+	  condition->addObject(object);	  
+
+	  
+        } else if(object->getType() == esObjectType::ETM) {
+	  // we have ETM
+	  
+	  // Form a simple condition for this leg, parse it so it goes into the map.
+	  esCondition* condition = esCondition();
+	  condition->setName(object->getName());
+	  condition->setType(esConditionType::MissingEt);
+	  condition->addObject(object);	  	  
+*/
+	}  //if block on leg types
+
+      }  //loop over legs
+    
+
+    // get greater equal flag for the correlation condition
+    bool gEq = true;
+    if (intGEq[0] != intGEq[1]) {
+        edm::LogError("TriggerMenuXmlParser")
+                << "Inconsistent GEq flags for sub-conditions (" << condition
+                << ")" 
+                << " for the correlation condition " << name << std::endl;
+        return false;
+
+    }
+    else {
+        gEq = (intGEq[0] != 0);
+
+    }
+    
+
+   // fill the correlation condition
+    correlationCond.setCondType(cType);
+    correlationCond.setObjectType(objType);
+    correlationCond.setCondGEq(gEq);
+    correlationCond.setCondChipNr(chipNr);
+
+    correlationCond.setCond0Category(condCateg[0]);
+    correlationCond.setCond1Category(condCateg[1]);
+
+    correlationCond.setCond0Index(corrIndexVal[0]);
+    correlationCond.setCond1Index(corrIndexVal[1]);
+
+    correlationCond.setCorrelationParameter(corrParameter);
+
+    if (edm::isDebugEnabled() ) {
+
+        std::ostringstream myCoutStream;
+        correlationCond.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n"
+                << std::endl;
+
+    }
+
+    // insert condition into the map
+    // condition is not duplicate, check was done at the beginning
+
+    (m_vecCorrelationTemplate[chipNr]).push_back(correlationCond);
+    
+ 
+    //
+    return true;
+}
+
+
+
 /**
  * parseId - parse all identification attributes (trigger menu names, scale DB key, etc)
  *
@@ -3851,6 +5042,92 @@ bool l1t::TriggerMenuXmlParser::parseConditions( l1t::ConditionList conditions )
     return true;
 }
 
+
+/**
+ * workAlgorithm - parse the algorithm and insert it into algorithm map.
+ *
+ * @param node The corresponding node to the algorithm.
+ * @param name The name of the algorithm.
+ * @param chipNr The number of the chip the conditions for that algorithm are located on.
+ *
+ * @return "true" on success, "false" if an error occurred.
+ *
+ */
+
+bool l1t::TriggerMenuXmlParser::parseAlgorithmV2( tmeventsetup::esAlgorithm algorithm,
+    unsigned int chipNr) {
+
+  
+  using namespace tmeventsetup;
+  using namespace Algorithm;
+  
+
+    // get alias
+    std::string algAlias = algorithm.getName();
+    std::string algName  = algorithm.getName();
+
+    if (algAlias == "") {
+        algAlias = algName;
+        LogDebug("TriggerMenuXmlParser")
+                << "\n    No alias defined for algorithm. Alias set to algorithm name."
+                << "\n    Algorithm name:  " << algName << "\n    Algorithm alias: " << algAlias
+                << std::endl;
+    } else {
+      //LogDebug("TriggerMenuXmlParser") 
+      LogDebug("l1t|Global")  << "\n    Alias defined for algorithm."
+			      << "\n    Algorithm name:  " << algName << "\n    Algorithm alias: " << algAlias
+			      << std::endl;
+    }
+
+    // get the logical expression
+    std::string logExpression = algorithm.getExpressionInCondition();
+
+    LogDebug("l1t|Global")
+      << "      Logical expression: " << logExpression
+      << "      Chip number:        " << chipNr
+      << std::endl;
+
+    // determine output pin
+    int outputPin = algorithm.getIndex();
+
+
+    //LogTrace("TriggerMenuXmlParser")
+    LogDebug("l1t|Global")  << "      Output pin:         " << outputPin
+			    << std::endl;
+
+
+    // compute the bit number from chip number, output pin and order of the chips
+    // pin numbering start with 1, bit numbers with 0
+    int bitNumber = outputPin;// + (m_orderConditionChip[chipNr] -1)*m_pinsOnConditionChip -1;
+
+    //LogTrace("TriggerMenuXmlParser")
+    LogDebug("l1t|Global")  << "      Bit number:         " << bitNumber
+			    << std::endl;
+
+    // create a new algorithm and insert it into algorithm map
+    L1GtAlgorithm alg(algName, logExpression, bitNumber);
+    alg.setAlgoChipNumber(static_cast<int>(chipNr));
+    alg.setAlgoAlias(algAlias);
+
+    if (edm::isDebugEnabled() ) {
+
+        std::ostringstream myCoutStream;
+        alg.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n" << std::endl;
+
+    }
+
+    // insert algorithm into the map
+    if ( !insertAlgorithmIntoMap(alg)) {  
+        return false;
+    }
+
+    return true;
+
+}
+
+
+
 /**
  * workAlgorithm - parse the algorithm and insert it into algorithm map.
  *
@@ -3944,7 +5221,7 @@ bool l1t::TriggerMenuXmlParser::workAlgorithm( l1t::Algorithm algorithm,
 
     // insert algorithm into the map
     if ( !insertAlgorithmIntoMap(alg)) {
-
+    
         return false;
     }
 
@@ -4162,6 +5439,7 @@ bool l1t::TriggerMenuXmlParser::workXML( std::auto_ptr<l1t::L1TriggerMenu> tm ) 
     l1t::ConditionList conditions = tm->conditions();
     l1t::AlgorithmList algorithms = tm->algorithms();
 
+
     if ( !parseId( meta ) ) {
       clearMaps();
       return false;
@@ -4176,6 +5454,7 @@ bool l1t::TriggerMenuXmlParser::workXML( std::auto_ptr<l1t::L1TriggerMenu> tm ) 
         clearMaps();
         return false;
     }
+
 
 //     if ( !parseTechTriggers(parser) ) {
 //         clearMaps();
