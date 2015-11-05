@@ -415,7 +415,8 @@ void l1t::TriggerMenuXmlParser::parseXmlFileV2(const std::string& defXmlFile) {
 	            condition->getType() == esConditionType::QuadMuon      )       
 	  {
              parseMuonV2(*condition,chipNr,false);
-
+             std::cout << "Returning from parseMuonV2 " << std::endl;
+	     
 	  //parse Correlation Conditions	 	
 	  } else if(condition->getType() == esConditionType::MuonMuonCorrelation    ||
 	            condition->getType() == esConditionType::MuonEsumCorrelation    ||
@@ -425,6 +426,7 @@ void l1t::TriggerMenuXmlParser::parseXmlFileV2(const std::string& defXmlFile) {
 		    condition->getType() == esConditionType::InvariantMass )       
 	  {
              parseCorrelationV2(*condition,chipNr);
+	     std::cout << "Returning from parseCorrelationV2 " << std::endl;
 	  }      
       
       }//if condition is a new one
@@ -1156,7 +1158,7 @@ bool l1t::TriggerMenuXmlParser::insertConditionIntoMap(GtCondition& cond, const 
 
     std::string cName = cond.condName();
     //LogTrace("TriggerMenuXmlParser")
-    //<< "    Trying to insert condition \"" << cName << "\" in the condition map." ;
+    std::cout << "    Trying to insert condition \"" << cName << "\" in the condition map." ;
 
     // no condition name has to appear twice!
     if ((m_conditionMap[chipNr]).count(cName) != 0) {
@@ -1167,8 +1169,8 @@ bool l1t::TriggerMenuXmlParser::insertConditionIntoMap(GtCondition& cond, const 
 
     (m_conditionMap[chipNr])[cName] = &cond;
     //LogTrace("TriggerMenuXmlParser")
-    //<< "      OK - condition inserted!"
-    //<< std::endl;
+    std::cout << "      OK - condition inserted!"
+    << std::endl;
 
 
     return true;
@@ -2243,7 +2245,7 @@ bool l1t::TriggerMenuXmlParser::parseMuonV2(tmeventsetup::esCondition condMu,
     else {
         LogDebug("l1t|Global") << "Added Condition " << name << " to the ConditionMap" << std::endl;
         if (corrFlag) {
-	    LogDebug("l1t|Global") << "Added Condition " << name << " to the corMuonTemplate vector" << std::endl;
+	    std::cout << "Added Condition " << name << " to the corMuonTemplate vector" << std::endl;
             (m_corMuonTemplate[chipNr]).push_back(muonCond);
         }
         else {
@@ -2256,6 +2258,231 @@ bool l1t::TriggerMenuXmlParser::parseMuonV2(tmeventsetup::esCondition condMu,
     //
     return true;
 }
+
+
+bool l1t::TriggerMenuXmlParser::parseMuonCorr(const tmeventsetup::esObject* corrMu,
+        unsigned int chipNr) {
+
+
+//    XERCES_CPP_NAMESPACE_USE
+    using namespace tmeventsetup;
+
+    // get condition, particle name (must be muon) and type name
+    std::string condition = "muon";
+    std::string particle = "muon";//l1t2string( condMu.objectType() );
+    std::string type = l1t2string( corrMu->getType() );
+    std::string name = l1t2string( corrMu->getName() );
+    int nrObj = 1;
+    type = "1_s";
+
+
+
+    if (nrObj < 0) {
+        edm::LogError("TriggerMenuXmlParser") << "Unknown type for muon-condition (" << type
+            << ")" << "\nCan not determine number of trigger objects. " << std::endl;
+        return false;
+    }
+
+    LogDebug("l1t|Global")
+      << "\n ****************************************** "
+      << "\n      parseMuon  "
+      << "\n condition = " << condition
+      << "\n particle  = " << particle
+      << "\n type      = " << type
+      << "\n name      = " << name
+      << std::endl;
+
+
+
+//     // get values
+
+    // temporary storage of the parameters
+    std::vector<MuonTemplate::ObjectParameter> objParameter(nrObj);
+    
+    // Do we need this?
+    MuonTemplate::CorrelationParameter corrParameter;
+
+    // need at least two values for deltaPhi
+    std::vector<boost::uint64_t> tmpValues((nrObj > 2) ? nrObj : 2);
+    tmpValues.reserve( nrObj );
+
+
+// BLW TO DO: How do we deal with these in the new format    
+//    std::string str_chargeCorrelation = l1t2string( condMu.requestedChargeCorr() );
+    std::string str_chargeCorrelation = "ig";
+    unsigned int chargeCorrelation = 0;
+    if( str_chargeCorrelation=="ig" )      chargeCorrelation = 1;
+    else if( str_chargeCorrelation=="ls" ) chargeCorrelation = 2;
+    else if( str_chargeCorrelation=="os" ) chargeCorrelation = 4;
+
+    //getXMLHexTextValue("1", dst);
+    corrParameter.chargeCorrelation = chargeCorrelation;//tmpValues[0];
+
+
+
+ // BLW TO DO: These needs to the added to the object rather than the whole condition.
+   int relativeBx = 0;
+   bool gEq = false;
+
+
+   //const esObject* object = condMu;
+   gEq =  (corrMu->getComparisonOperator() == esComparisonOperator::GE);
+
+ //  BLW TO DO: This needs to be added to the Object Parameters   
+   relativeBx = corrMu->getBxOffset();
+
+ //  Loop over the cuts for this object
+    int upperThresholdInd = -1;
+    int lowerThresholdInd = 0;
+    int cntEta = 0;
+    unsigned int etaWindow1Lower=-1, etaWindow1Upper=-1, etaWindow2Lower=-1, etaWindow2Upper=-1;
+    int cntPhi = 0;
+    unsigned int phiWindow1Lower=-1, phiWindow1Upper=-1, phiWindow2Lower=-1, phiWindow2Upper=-1;
+    int isolationLUT = 0xF; //default is to ignore unless specified.
+    int charge = 0;
+    int qualityLUT = 0xF; //default is to ignore unless specified.		
+
+    const std::vector<esCut*>& cuts = corrMu->getCuts();
+    for (size_t kk = 0; kk < cuts.size(); kk++)
+    {
+      const esCut* cut = cuts.at(kk); 
+
+      switch(cut->getCutType()){
+	 case esCutType::Threshold:
+	   lowerThresholdInd = cut->getMinimum().index;
+	   upperThresholdInd = cut->getMaximum().index;
+	   break;
+
+	 case esCutType::Eta: {
+
+             if(cntEta == 0) {
+		etaWindow1Lower = cut->getMinimum().index;
+		etaWindow1Upper = cut->getMaximum().index;
+	     } else if(cntEta == 1) {
+		etaWindow2Lower = cut->getMinimum().index;
+		etaWindow2Upper = cut->getMaximum().index;
+             } else {
+               edm::LogError("TriggerMenuXmlParser") << "Too Many Eta Cuts for muon-condition ("
+        	   << particle << ")" << std::endl;
+               return false;
+	     }
+	     cntEta++; 
+
+	   } break;
+
+	 case esCutType::Phi: {
+
+            if(cntPhi == 0) {
+		phiWindow1Lower = cut->getMinimum().index;
+		phiWindow1Upper = cut->getMaximum().index;
+	     } else if(cntPhi == 1) {
+		phiWindow2Lower = cut->getMinimum().index;
+		phiWindow2Upper = cut->getMaximum().index;
+             } else {
+               edm::LogError("TriggerMenuXmlParser") << "Too Many Phi Cuts for muon-condition ("
+        	   << particle << ")" << std::endl;
+               return false;
+	     }
+	     cntPhi++; 
+
+	   }break;
+
+	 case esCutType::Charge:
+	   // charge = cut->get ???  //BLW TO DO: What do we do here.
+	   break;
+	 case esCutType::Quality:
+
+            qualityLUT = l1tstr2int(cut->getData());
+
+	   break;
+	 case esCutType::Isolation: {
+
+            isolationLUT = l1tstr2int(cut->getData());
+
+	   } break;
+	 default:
+	   break; 	       	       	       	       
+      } //end switch 
+
+    } //end loop over cuts
+
+
+ // Set the parameter cuts
+    objParameter[0].ptHighThreshold = upperThresholdInd;
+    objParameter[0].ptLowThreshold  = lowerThresholdInd;
+
+    objParameter[0].etaWindow1Lower     = etaWindow1Lower;
+    objParameter[0].etaWindow1Upper     = etaWindow1Upper;
+    objParameter[0].etaWindow2Lower = etaWindow2Lower;
+    objParameter[0].etaWindow2Upper = etaWindow2Upper;
+
+    objParameter[0].phiWindow1Lower     = phiWindow1Lower;
+    objParameter[0].phiWindow1Upper     = phiWindow1Upper;
+    objParameter[0].phiWindow2Lower = phiWindow2Lower;
+    objParameter[0].phiWindow2Upper = phiWindow2Upper;
+
+ // BLW TO DO: Do we need these anymore?  Drop them?   
+    objParameter[0].enableMip = false;//tmpMip[i];
+    objParameter[0].enableIso = false;//tmpEnableIso[i];
+    objParameter[0].requestIso = false;//tmpRequestIso[i];
+
+    objParameter[0].charge = charge;
+    objParameter[0].qualityLUT = qualityLUT;
+    objParameter[0].isolationLUT = isolationLUT;
+
+
+
+    // get the type of the condition, as defined in enum, from the condition type
+    // as defined in the XML file
+    // BLW TO DO: What the heck is this for?
+    GtConditionType cType = getTypeFromType(type);
+    //LogTrace("TriggerMenuXmlParser")
+    //<< "      Condition type (enum value) = " << cType
+    //<< std::endl;
+
+    if (cType == l1t::TypeNull) {
+        edm::LogError("TriggerMenuXmlParser")
+            << "Type for muon condition id l1t::TypeNull - it means not defined in the XML file."
+            << "\nNumber of trigger objects is set to zero. " << std::endl;
+        return false;
+    }
+
+    // object types - all muons
+    std::vector<L1GtObject> objType(nrObj, Mu);
+
+    // now create a new CondMuonition
+    MuonTemplate muonCond(name);
+
+    muonCond.setCondType(cType);
+    muonCond.setObjectType(objType);
+    muonCond.setCondGEq(gEq);
+    muonCond.setCondChipNr(chipNr);
+    muonCond.setCondRelativeBx(relativeBx);
+    muonCond.setConditionParameter(objParameter, corrParameter);
+
+    if (edm::isDebugEnabled()) {
+        std::ostringstream myCoutStream;
+        muonCond.print(myCoutStream);
+        LogTrace("TriggerMenuXmlParser") << myCoutStream.str() << "\n" << std::endl;
+    }
+
+    // insert condition into the map and into muon template vector
+    if ( !insertConditionIntoMap(muonCond, chipNr)) {
+        edm::LogError("TriggerMenuXmlParser")
+                << "    Error: duplicate condition (" << name << ")"
+                << std::endl;
+        return false;
+    }
+    else {
+        LogDebug("l1t|Global") << "Added Condition " << name << " to the ConditionMap" << std::endl;
+	    std::cout << "Added Condition " << name << " to the corMuonTemplate vector" << std::endl;
+            (m_corMuonTemplate[chipNr]).push_back(muonCond);
+    }
+
+    //
+    return true;
+}
+
 
 
 /**
@@ -4498,7 +4725,7 @@ bool l1t::TriggerMenuXmlParser::parseCorrelationV2(
       const std::vector<esObject*>& objects = corrCond.getObjects();
       if(objects.size() != 2) {
             edm::LogError("TriggerMenuXmlParser")
-                    << "incorrect number of objects for the correlation condition " << name << std::endl;
+                    << "incorrect number of objects for the correlation condition " << name << " corrFlag " << corrFlag << std::endl;
             return false;      
       }
       
@@ -4513,26 +4740,25 @@ bool l1t::TriggerMenuXmlParser::parseCorrelationV2(
 
 // check the leg type
         if(object->getType() == esObjectType::Muon) {
-	  // we have a muon
-
-	  
-	  // Form a simple condition for this leg, parse it so it goes into the map.
-	  esCondition* condition = new esCondition();
-	  condition->setName(object->getName());
-	  condition->setType(esConditionType::SingleMuon);
-	  esObject* condObject = (esObject*)object;
-	  condition->addObject(condObject);	  
+	  // we have a muon  
 
           //BLW Is there a problem here with not entering second instanance into the m_corMuonTemplate[]?
-          if ((m_conditionMap[chipNr]).count(condition->getName()) == 0) parseMuonV2(*condition,chipNr,corrFlag);
-
+          if ((m_conditionMap[chipNr]).count(object->getName()) == 0) {
+	   
+	                   std::cout << "Heading into parseMuonCorr " << std::endl;
+             bool result = parseMuonCorr(object,chipNr);
+                           std::cout << "Returning from parseMuonCorr" << std::endl;	     
+	     
+	     std::cout << " Adding Correlation Muon Condition. result of add " << result << std::endl;
+          } else {
+	     std::cout << "Not Adding Correlation Muon Condition." << std::endl;
+	  }
+	  
           //Now set some flags for this subCondition
 	  intGEq[jj] = (object->getComparisonOperator() == esComparisonOperator::GE);
           objType[jj] = Mu;
           condCateg[jj] = CondMuon;
           corrIndexVal[jj] = (m_corMuonTemplate[chipNr]).size() - 1;
-
-	  
 
 
 /*	  
@@ -4572,9 +4798,8 @@ bool l1t::TriggerMenuXmlParser::parseCorrelationV2(
     // get greater equal flag for the correlation condition
     bool gEq = true;
     if (intGEq[0] != intGEq[1]) {
-        edm::LogError("TriggerMenuXmlParser")
-                << "Inconsistent GEq flags for sub-conditions (" << condition
-                << ")" 
+       // edm::LogError("TriggerMenuXmlParser")
+         std::cout       << "Inconsistent GEq flags for sub-conditions "
                 << " for the correlation condition " << name << std::endl;
         return false;
 
@@ -4613,7 +4838,7 @@ bool l1t::TriggerMenuXmlParser::parseCorrelationV2(
 
     (m_vecCorrelationTemplate[chipNr]).push_back(correlationCond);
     
- 
+    std::cout << "leaving from parseCorrelationV2 " << std::endl;
     //
     return true;
 }

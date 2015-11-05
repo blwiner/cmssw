@@ -462,6 +462,10 @@ private:
     bool parseMuonV2( tmeventsetup::esCondition condMu,
             unsigned int chipNr = 0, const bool corrFlag = false);
 
+    bool parseMuonCorr(const tmeventsetup::esObject* condMu,
+             unsigned int chipNr = 0);
+
+
     /// parse a calorimeter condition
 /*     bool parseCalo(XERCES_CPP_NAMESPACE::DOMNode* node, */
 /*             const std::string& name, unsigned int chipNr = 0, */
