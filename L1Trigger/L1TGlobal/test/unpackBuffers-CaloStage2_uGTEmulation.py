@@ -243,12 +243,12 @@ process.rawDataCollector.verbose = cms.untracked.int32(2)
 
 
 # dump raw data
-process.dumpRaw = cms.EDAnalyzer( 
-    "DumpFEDRawDataProduct",
-    label = cms.untracked.string("rawDataCollector"),
-    feds = cms.untracked.vint32 ( 1360, 1366, 1404 ),
-    dumpPayload = cms.untracked.bool ( True )
-)
+#process.dumpRaw = cms.EDAnalyzer( 
+#    "DumpFEDRawDataProduct",
+#    label = cms.untracked.string("rawDataCollector"),
+#    feds = cms.untracked.vint32 ( 1360, 1366, 1404 ),
+#    dumpPayload = cms.untracked.bool ( True )
+#)
 
 # raw to digi
 process.load('EventFilter.L1TRawToDigi.caloStage2Digis_cfi')
@@ -263,12 +263,12 @@ process.load('L1Trigger.L1TGlobal.StableParametersConfig_cff')
 process.load('L1Trigger.L1TGlobal.TriggerMenuXml_cfi')
 process.TriggerMenuXml.TriggerMenuLuminosity = 'startup'
 #process.TriggerMenuXml.DefXmlFile = 'L1Menu_CaloSliceTest_2015_v4.xml'
-process.TriggerMenuXml.DefXmlFile = 'L1Menu_Point5IntegrationTest_2015_v2.xml'
+process.TriggerMenuXml.DefXmlFile = 'L1Menu_Point5IntegrationTest_2015_v2a.xml'
 process.TriggerMenuXml.newGrammar = cms.bool(options.newXML)
 if(options.newXML):
    print "Using new XML Grammar "
    #process.TriggerMenuXml.DefXmlFile = 'L1Menu_Point5IntegrationTest_2015_v1a.xml'
-   process.TriggerMenuXml.DefXmlFile = 'MuonTest.xml'
+   process.TriggerMenuXml.DefXmlFile = 'MuonTest_NoCorr.xml'
 
 process.load('L1Trigger.L1TGlobal.TriggerMenuConfig_cff')
 process.es_prefer_l1GtParameters = cms.ESPrefer('l1t::TriggerMenuXmlProducer','TriggerMenuXml')
@@ -338,7 +338,7 @@ process.dumpGTRecord = cms.EDAnalyzer("l1t::GtRecordDump",
 		jetInputTag   = cms.InputTag("gtStage2Digis","GT"),
 		etsumInputTag = cms.InputTag("gtStage2Digis","GT"),
 		uGtRecInputTag = cms.InputTag(""),
-		uGtAlgInputTag = cms.InputTag("emL1uGtFromGtInput"),
+		uGtAlgInputTag = cms.InputTag("gtStage2Digis"),
 		uGtExtInputTag = cms.InputTag(""),
 		bxOffset       = cms.int32(0),
 		minBx          = cms.int32(0),
@@ -346,7 +346,7 @@ process.dumpGTRecord = cms.EDAnalyzer("l1t::GtRecordDump",
 		minBxVec       = cms.int32(0),
 		maxBxVec       = cms.int32(0),		
 		dumpGTRecord   = cms.bool(True),
-		dumpVectors    = cms.bool(True),
+		dumpVectors    = cms.bool(False),
 		tvFileName     = cms.string( "TestVector.txt" )
 		 )
 		 
@@ -360,13 +360,13 @@ process.path = cms.Path(
      process.stage2DemuxRaw
     +process.stage2GTRaw
     +process.rawDataCollector
-    +process.dumpRaw
+#    +process.dumpRaw
     +process.caloStage2Digis
     +process.gtStage2Digis
     +process.emL1uGtFromGtInput
-#    +process.emL1uGtFromDemuxOutput
+    +process.emL1uGtFromDemuxOutput
 #    +process.l1tStage2CaloAnalyzer
-#    +process.l1tGlobalAnalyzer
+    +process.l1tGlobalAnalyzer
 #    +process.dumpGTRecord
 )
 
@@ -380,6 +380,6 @@ if (not options.doGT):
     process.path.remove(process.stage2GTRaw)
 
 process.out = cms.EndPath(
-    process.output
+#    process.output
 )
 

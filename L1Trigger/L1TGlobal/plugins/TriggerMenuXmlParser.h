@@ -48,6 +48,14 @@
 
 #include "L1Trigger/L1TGlobal/src/L1TMenuEditor/L1TriggerMenu.hxx"
 
+#include "tmEventSetup/tmEventSetup.hh"
+#include "tmEventSetup/esTriggerMenu.hh"
+#include "tmEventSetup/esAlgorithm.hh"
+#include "tmEventSetup/esCondition.hh"
+#include "tmEventSetup/esObject.hh"
+#include "tmEventSetup/esCut.hh"
+#include "tmEventSetup/esScale.hh"
+#include "tmGrammar/Algorithm.hh"
 
 // forward declarations
 class GtCondition;
@@ -289,6 +297,9 @@ public:
     /// parse def.xml and vme.xml files
     void parseXmlFile(const std::string& defXmlFile,
             const std::string& vmeXmlFile);
+	    
+	    
+    void parseXmlFileV2(const std::string& defXmlFile);	    
 
 public:
 
@@ -435,6 +446,7 @@ private:
     template <typename T> std::string l1t2string( T );
     std::string l1tDateTime2string( l1t::DateTime );
     int l1t2int( l1t::RelativeBx );
+    int l1tstr2int( const std::string data );
 
     /// parse a muon condition
 /*     bool parseMuon(XERCES_CPP_NAMESPACE::DOMNode* node, */
@@ -442,6 +454,16 @@ private:
 /*             const bool corrFlag = false); */
     bool parseMuon( l1t::MuonCondition condMu,
             unsigned int chipNr = 0, const bool corrFlag = false);
+
+    /// parse a muon condition
+/*     bool parseMuon(XERCES_CPP_NAMESPACE::DOMNode* node, */
+/*             const std::string& name, unsigned int chipNr = 0, */
+/*             const bool corrFlag = false); */
+    bool parseMuonV2( tmeventsetup::esCondition condMu,
+            unsigned int chipNr = 0, const bool corrFlag = false);
+
+    bool parseMuonCorr(const tmeventsetup::esObject* condMu,
+             unsigned int chipNr = 0);
 
 
     /// parse a calorimeter condition
@@ -451,6 +473,14 @@ private:
     bool parseCalo( l1t::CalorimeterCondition condCalo,
             unsigned int chipNr = 0, const bool corrFlag = false);
 
+    /// parse a calorimeter condition
+/*     bool parseCalo(XERCES_CPP_NAMESPACE::DOMNode* node, */
+/*             const std::string& name, unsigned int chipNr = 0, */
+/*             const bool corrFlag = false); */
+    bool parseCaloV2( tmeventsetup::esCondition condCalo,
+            unsigned int chipNr = 0, const bool corrFlag = false);
+
+
     /// parse an "energy sum" condition
     /* bool parseEnergySum(XERCES_CPP_NAMESPACE::DOMNode* node, */
     /*         const std::string& name, unsigned int chipNr = 0, */
@@ -458,6 +488,15 @@ private:
 
     bool parseEnergySum( l1t::EnergySumsCondition condEnergySums,
             unsigned int chipNr = 0, const bool corrFlag = false);
+
+    /// parse an "energy sum" condition
+    /* bool parseEnergySum(XERCES_CPP_NAMESPACE::DOMNode* node, */
+    /*         const std::string& name, unsigned int chipNr = 0, */
+    /*         const bool corrFlag = false); */
+
+    bool parseEnergySumV2( tmeventsetup::esCondition condEnergySums,
+            unsigned int chipNr = 0, const bool corrFlag = false);
+
 
     /// parse a "jet counts" condition
     bool parseJetCounts(XERCES_CPP_NAMESPACE::DOMNode* node,
@@ -487,6 +526,9 @@ private:
     bool parseCorrelation(XERCES_CPP_NAMESPACE::DOMNode* node,
             const std::string& name, unsigned int chipNr = 0);
 
+    /// parse a correlation condition
+    bool parseCorrelationV2(tmeventsetup::esCondition corrCond, unsigned int chipNr = 0);
+
     /// parse all parse all identification attributes (trigger menu names, scale DB key, etc)
     //bool parseId(XERCES_CPP_NAMESPACE::XercesDOMParser* parser);
     bool parseId( std::auto_ptr<l1t::L1TriggerMenu> tm );
@@ -510,6 +552,12 @@ private:
     /// parse all algorithms
     //bool parseAlgorithms(XERCES_CPP_NAMESPACE::XercesDOMParser* parser);
     bool parseAlgorithms( l1t::AlgorithmList algorithms );
+
+    /// parse all algorithms
+    //bool parseAlgorithms(XERCES_CPP_NAMESPACE::XercesDOMParser* parser);
+    bool parseAlgorithmV2( tmeventsetup::esAlgorithm algorithm,
+            unsigned int chipNr = 0 );
+
 
     /// parse an algorithm and insert it into algorithm map.
     bool workTechTrigger(XERCES_CPP_NAMESPACE::DOMNode* node,

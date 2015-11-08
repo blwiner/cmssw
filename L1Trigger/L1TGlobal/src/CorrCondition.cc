@@ -26,6 +26,14 @@
 #include "L1Trigger/L1TGlobal/interface/CorrelationTemplate.h"
 #include "L1Trigger/L1TGlobal/interface/ConditionEvaluation.h"
 
+#include "L1Trigger/L1TGlobal/interface/MuCondition.h"
+#include "L1Trigger/L1TGlobal/interface/CaloCondition.h"
+#include "L1Trigger/L1TGlobal/interface/EnergySumCondition.h"
+#include "L1Trigger/L1TGlobal/interface/MuonTemplate.h"
+#include "L1Trigger/L1TGlobal/interface/CaloTemplate.h"
+#include "L1Trigger/L1TGlobal/interface/EnergySumTemplate.h"
+
+
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutSetupFwd.h"
 
 #include "DataFormats/L1Trigger/interface/L1Candidate.h"
@@ -139,10 +147,191 @@ void l1t::CorrCondition::setGtCorrParDeltaPhiNrBins(
 // try all object permutations and check spatial correlations, if required
 const bool l1t::CorrCondition::evaluateCondition(const int bxEval) const {
 
-    // std::cout << "m_isDebugEnabled = " << m_isDebugEnabled << std::endl;
+    
     // std::cout << "m_verbosity = " << m_verbosity << std::endl;
 
     bool condResult = false;
+    bool reqObjResult = false;
+
+    // number of objects in condition (it is 2, no need to retrieve from
+    // condition template) and their type
+    int nObjInCond = 2;
+    std::vector<L1GtObject> cndObjTypeVec(nObjInCond);
+
+    // evaluate first the two sub-conditions (Type1s)
+
+    const GtConditionCategory cond0Categ = m_gtCorrelationTemplate->cond0Category();
+    const GtConditionCategory cond1Categ = m_gtCorrelationTemplate->cond1Category();
+
+//    const MuonTemplate* corrMuon = 0;
+//    const CaloTemplate* corrCalo = 0;
+//    const EnergySumTemplate* corrEnergySum = 0;
+
+    // FIXME copying is slow...
+    CombinationsInCond cond0Comb;
+    CombinationsInCond cond1Comb;
+
+    switch (cond0Categ) {
+        case CondMuon: {
+/*            corrMuon = static_cast<const MuonTemplate*>(m_gtCond0);
+            MuCondition muCondition(corrMuon, m_uGtB,
+                    0,0); //BLW these are counts that don't seem to be used...perhaps remove
+
+            muCondition.evaluateConditionStoreResult(bxEval);
+            reqObjResult = muCondition.condLastResult();
+
+            cond0Comb = (muCondition.getCombinationsInCond());
+            cndObjTypeVec[0] = (corrMuon->objectType())[0];
+
+            if (m_verbosity ) {
+                std::ostringstream myCout;
+                muCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+*/        }
+            break;
+        case CondCalo: {
+/*            corrCalo = static_cast<const CaloTemplate*>(m_gtCond0);
+
+            CaloCondition caloCondition(corrCalo, m_gtPSB,
+                    m_cond0NrL1Objects, m_cond0NrL1Objects, m_cond0NrL1Objects,
+                    m_cond0NrL1Objects, m_cond0NrL1Objects, m_cond0EtaBits);
+
+            caloCondition.evaluateConditionStoreResult();
+            reqObjResult = caloCondition.condLastResult();
+
+            cond0Comb = (caloCondition.getCombinationsInCond());
+            cndObjTypeVec[0] = (corrCalo->objectType())[0];
+
+            if (m_verbosity) {
+                std::ostringstream myCout;
+                caloCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+*/        }
+            break;
+        case CondEnergySum: {
+/*            corrEnergySum = static_cast<const EnergySumTemplate*>(m_gtCond0);
+            EnergySumCondition eSumCondition(corrEnergySum, m_gtPSB);
+
+            eSumCondition.evaluateConditionStoreResult();
+            reqObjResult = eSumCondition.condLastResult();
+
+            cond0Comb = (eSumCondition.getCombinationsInCond());
+            cndObjTypeVec[0] = (corrEnergySum->objectType())[0];
+
+            if (m_verbosity ) {
+                std::ostringstream myCout;
+                eSumCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+*/        }
+            break;
+        default: {
+            // should not arrive here, there are no correlation conditions defined for this object
+            return false;
+        }
+            break;
+    }
+
+    // return if first subcondition is false
+    if (!reqObjResult) {
+        if (m_verbosity) {
+            LogTrace("L1GlobalTrigger")
+                    << "\n  First sub-condition false, second sub-condition not evaluated and not printed."
+                    << std::endl;
+        }
+        return false;
+    }
+
+    // second object
+    reqObjResult = false;
+
+    switch (cond1Categ) {
+        case CondMuon: {
+/*            corrMuon = static_cast<const MuonTemplate*>(m_gtCond1);
+            MuCondition muCondition(corrMuon, m_uGtB,
+                    0,0); //BLW these are counts that don't seem to be used...perhaps remove
+
+            muCondition.evaluateConditionStoreResult(bxEval);
+            reqObjResult = muCondition.condLastResult();
+
+            cond1Comb = (muCondition.getCombinationsInCond());
+            cndObjTypeVec[1] = (corrMuon->objectType())[0];
+
+            if (m_verbosity) {
+                std::ostringstream myCout;
+                muCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+*/        }
+            break;
+        case CondCalo: {
+/*            corrCalo = static_cast<const CaloTemplate*>(m_gtCond1);
+            CaloCondition caloCondition(corrCalo, m_gtPSB,
+                    m_cond1NrL1Objects, m_cond1NrL1Objects, m_cond1NrL1Objects,
+                    m_cond1NrL1Objects, m_cond1NrL1Objects, m_cond1EtaBits);
+
+            caloCondition.evaluateConditionStoreResult();
+            reqObjResult = caloCondition.condLastResult();
+
+            cond1Comb = (caloCondition.getCombinationsInCond());
+            cndObjTypeVec[1] = (corrCalo->objectType())[0];
+
+            if (m_verbosity ) {
+                std::ostringstream myCout;
+                caloCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+
+*/        }
+            break;
+        case CondEnergySum: {
+/*            corrEnergySum = static_cast<const EnergySumTemplate*>(m_gtCond1);
+            EnergySumCondition eSumCondition(corrEnergySum, m_gtPSB);
+            eSumCondition.evaluateConditionStoreResult();
+            reqObjResult = eSumCondition.condLastResult();
+
+            cond1Comb = (eSumCondition.getCombinationsInCond());
+            cndObjTypeVec[1] = (corrEnergySum->objectType())[0];
+
+            if (m_verbosity) {
+                std::ostringstream myCout;
+                eSumCondition.print(myCout);
+
+                LogTrace("L1GlobalTrigger") << myCout.str() << std::endl;
+            }
+*/        }
+            break;
+        default: {
+            // should not arrive here, there are no correlation conditions defined for this object
+            return false;
+        }
+            break;
+    }
+
+    // return if second sub-condition is false
+    if (!reqObjResult) {
+        return false;
+    } else {
+        LogTrace("L1GlobalTrigger") << "\n"
+                << "    Both sub-conditions true for object requirements."
+                << "    Evaluate correlation requirements.\n" << std::endl;
+
+    }
+
+ 
+    if (m_verbosity  && condResult) {
+        LogTrace("L1GlobalTrigger") << " pass(es) the correlation condition.\n"
+                << std::endl;
+    }
+
+
 
     return condResult;
 
