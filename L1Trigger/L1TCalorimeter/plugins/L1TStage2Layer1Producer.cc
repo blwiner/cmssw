@@ -197,7 +197,8 @@ L1TStage2Layer1Producer::produce(edm::Event& iEvent, const edm::EventSetup& iSet
 
       int itow = CaloTools::caloTowerHash(ieta, iphi);
       localInTowers->at(itow).setHwEtEm(ietOut);// & ietOutMask);
-      localInTowers->at(itow).setHwQual( localInTowers->at(itow).hwQual() | (ifg ? 0x4 : 0x0) );
+      //localInTowers->at(itow).setHwQual( localInTowers->at(itow).hwQual() | (ifg ? 0x4 : 0x0) );
+      localInTowers->at(itow).setHwQual( localInTowers->at(itow).hwQual() | (ifg ? 0x8 : 0x0) ); //ECAL FG bit is supposed to be on bit 3
 
     }
 
@@ -210,7 +211,7 @@ L1TStage2Layer1Producer::produce(edm::Event& iEvent, const edm::EventSetup& iSet
       int iphi = hcalItr->id().iphi();
 
       int ietIn = hcalItr->SOI_compressedEt();
-      //int ifg = hcalItr->SOI_fineGrain();
+      int ifg = hcalItr->SOI_fineGrain();
 
       // decompress
       double et = hcalScale->et( ietIn, abs(ieta), (ieta>0) );
@@ -223,6 +224,7 @@ L1TStage2Layer1Producer::produce(edm::Event& iEvent, const edm::EventSetup& iSet
       int itow = CaloTools::caloTowerHash(ieta, iphi);
       localInTowers->at(itow).setHwEtHad(ietOut);// & ietOutMask);
       //      towers.at(itow).setHwFGHad(ifg);
+      localInTowers->at(itow).setHwQual( localInTowers->at(itow).hwQual() | (ifg ? 0x4 : 0x0) ); //HCAL FG bit is supposed to be on bit 2
 
     }
 

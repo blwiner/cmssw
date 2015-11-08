@@ -147,9 +147,14 @@ private:
 
     /// input tag for muon collection from GMT
     edm::InputTag m_muInputTag;
+    edm::EDGetTokenT<BXVector<l1t::Muon>> m_muInputToken;
 
     /// input tag for calorimeter collections from GCT
     edm::InputTag m_caloInputTag;
+    edm::EDGetTokenT<BXVector<l1t::EGamma>> m_egInputToken;
+    edm::EDGetTokenT<BXVector<l1t::Tau>> m_tauInputToken;
+    edm::EDGetTokenT<BXVector<l1t::Jet>> m_jetInputToken;
+    edm::EDGetTokenT<BXVector<l1t::EtSum>> m_sumInputToken;
 
     /// logical flag to produce the L1 GT DAQ readout record
     bool m_produceL1GtDaqRecord;

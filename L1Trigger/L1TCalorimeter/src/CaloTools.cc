@@ -98,8 +98,9 @@ int l1t::CaloTools::calHwEtSum(int iEta,int iPhi,const std::vector<l1t::CaloTowe
       int towerIPhi = l1t::CaloStage2Nav::offsetIPhi(iPhi,phiNr);
       if(abs(towerIEta)<=iEtaAbsMax){
 	const l1t::CaloTower& tower = getTower(towers,towerIEta,towerIPhi);
-	if(etMode&ECAL) hwEtSum+=tower.hwEtEm();
-	if(etMode&HCAL) hwEtSum+=tower.hwEtHad();
+	if(etMode==ECAL) hwEtSum+=tower.hwEtEm();
+	else if(etMode==HCAL) hwEtSum+=tower.hwEtHad();
+	else if(etMode==CALO) hwEtSum+=tower.hwPt();
       }	
     }
   }
@@ -116,9 +117,9 @@ size_t l1t::CaloTools::calNrTowers(int iEtaMin,int iEtaMax,int iPhiMin,int iPhiM
     while(!finishPhi){
       const l1t::CaloTower& tower = l1t::CaloTools::getTower(towers,nav.currIEta(),nav.currIPhi());
       int towerHwEt =0;
-      if(etMode&ECAL) towerHwEt+=tower.hwEtEm();
-      if(etMode&HCAL) towerHwEt+=tower.hwEtHad();
-      if(etMode&CALO) towerHwEt+=tower.hwPt();
+      if(etMode==ECAL) towerHwEt+=tower.hwEtEm();
+      else if(etMode==HCAL) towerHwEt+=tower.hwEtHad();
+      else if(etMode==CALO) towerHwEt+=tower.hwPt();
       if(towerHwEt>=minHwEt && towerHwEt<=maxHwEt) nrTowers++;
       finishPhi = (nav.currIPhi() == iPhiMax);
 	  nav.north();
@@ -134,7 +135,8 @@ std::pair<float,float> l1t::CaloTools::towerEtaBounds(int ieta)
   if(ieta==0) ieta = 1;
   if(ieta>32) ieta = 32;
   if(ieta<-32) ieta = -32;
-  const float towerEtas[33] = {0,0.087,0.174,0.261,0.348,0.435,0.522,0.609,0.696,0.783,0.870,0.957,1.044,1.131,1.218,1.305,1.392,1.479,1.566,1.653,1.740,1.830,1.930,2.043,2.172,2.322,2.5,2.650,3.000,3.5,4.0,4.5,5.0}; 
+  //const float towerEtas[33] = {0,0.087,0.174,0.261,0.348,0.435,0.522,0.609,0.696,0.783,0.870,0.957,1.044,1.131,1.218,1.305,1.392,1.479,1.566,1.653,1.740,1.830,1.930,2.043,2.172,2.322,2.5,2.650,3.000,3.5,4.0,4.5,5.0}; 
+  const float towerEtas[41] = {0,0.087,0.174,0.261,0.348,0.435,0.522,0.609,0.696,0.783,0.870,0.957,1.044,1.131,1.218,1.305,1.392,1.479,1.566,1.653,1.740,1.830,1.930,2.043,2.172,2.322,2.5,2.650,2.853,3.139,3.314,3.489,3.664,3.839,4.013,4.191,4.363,4.538,4.716,4.889,5.191};
   return std::make_pair( towerEtas[abs(ieta)-1],towerEtas[abs(ieta)] );
 }
 

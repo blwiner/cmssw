@@ -82,7 +82,15 @@ l1t::GtProducer::GtProducer(const edm::ParameterSet& parSet) :
             m_isDebugEnabled(edm::isDebugEnabled())
 {
 
-  
+
+  m_egInputToken = consumes <BXVector<l1t::EGamma> > (m_caloInputTag);
+  m_tauInputToken = consumes <BXVector<l1t::Tau> > (m_caloInputTag);
+  m_jetInputToken = consumes <BXVector<l1t::Jet> > (m_caloInputTag);
+  m_sumInputToken = consumes <BXVector<l1t::EtSum> > (m_caloInputTag);
+
+  m_muInputToken = consumes <BXVector<l1t::Muon> > (m_muInputTag);
+
+
     if (m_verbosity) {
 
         LogDebug("l1t|Global") << std::endl;
@@ -570,13 +578,17 @@ void l1t::GtProducer::produce(edm::Event& iEvent, const edm::EventSetup& evSetup
 
 
 // Load the calorimeter input onto the uGt Board
-     m_uGtBrd->receiveCaloObjectData(iEvent, m_caloInputTag,
+     m_uGtBrd->receiveCaloObjectData(iEvent, 
+				     m_egInputToken,
+				     m_tauInputToken,
+				     m_jetInputToken,
+				     m_sumInputToken,
         			     receiveEG, m_nrL1EG,
         			     receiveTau, m_nrL1Tau,				     
         			     receiveJet, m_nrL1Jet,
         			     receiveEtSums     );
 
-     m_uGtBrd->receiveMuonObjectData(iEvent, m_muInputTag,
+     m_uGtBrd->receiveMuonObjectData(iEvent, m_muInputToken,
                                      receiveMu, m_nrL1Mu  );
 
 

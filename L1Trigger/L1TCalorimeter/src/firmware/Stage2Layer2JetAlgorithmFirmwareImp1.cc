@@ -336,8 +336,12 @@ int l1t::Stage2Layer2JetAlgorithmFirmwareImp1::chunkyDonutPUEstimate(int jetEta,
   }
   
   // for donut subtraction we only use the middle 2 (in energy) ring strips
-  std::sort(ring.begin(), ring.end(), std::greater<int>());
-  return ( ring[1]+ring[2] ); 
+  // std::sort(ring.begin(), ring.end(), std::greater<int>());
+  // return ( ring[1]+ring[2] ); 
+
+  // use lowest 3 strips as PU estimate
+  std::sort( ring.begin(), ring.end() );
+  return ( ring[0] + ring[1] + ring[2] );
 
 }
 

@@ -66,7 +66,10 @@ public:
     /// receive data from Global Muon Trigger
     void receiveCaloObjectData(
         edm::Event&,
-        const edm::InputTag&, 
+	const edm::EDGetTokenT<BXVector<l1t::EGamma>>&,
+	const edm::EDGetTokenT<BXVector<l1t::Tau>>&,
+	const edm::EDGetTokenT<BXVector<l1t::Jet>>&,
+	const edm::EDGetTokenT<BXVector<l1t::EtSum>>&,
         const bool receiveEG, const int nrL1EG,
 	const bool receiveTau, const int nrL1Tau,	
 	const bool receiveJet, const int nrL1Jet,
@@ -74,7 +77,7 @@ public:
 
     void receiveMuonObjectData(
         edm::Event&,
-        const edm::InputTag&, 
+        const edm::EDGetTokenT<BXVector<l1t::Muon> >&, 
         const bool receiveMu, const int nrL1Mu);
 
 

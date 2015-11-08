@@ -178,7 +178,10 @@ void l1t::GtBoard::init(const int numberPhysTriggers, const int nrL1Mu, const in
 
 // receive data from Calorimeter
 void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
-        const edm::InputTag& caloInputTag, 
+	const edm::EDGetTokenT<BXVector<l1t::EGamma>>& egInputToken,
+	const edm::EDGetTokenT<BXVector<l1t::Tau>>& tauInputToken,
+	const edm::EDGetTokenT<BXVector<l1t::Jet>>& jetInputToken,
+	const edm::EDGetTokenT<BXVector<l1t::EtSum>>& sumInputToken,
         const bool receiveEG, const int nrL1EG,
 	const bool receiveTau, const int nrL1Tau,	
 	const bool receiveJet, const int nrL1Jet,
@@ -187,7 +190,7 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
     if (m_verbosity) {
         LogDebug("l1t|Global")
                 << "\n**** Board receiving Calo Data "
-                <<  "\n     from input tag " << caloInputTag << "\n"
+	  //<<  "\n     from input tag " << caloInputTag << "\n"
                 << std::endl;
 
     }
@@ -197,13 +200,13 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
     // get data from Calorimeter
     if (receiveEG) {
         edm::Handle<BXVector<l1t::EGamma>> egData;
-        iEvent.getByLabel(caloInputTag, egData);
+        iEvent.getByToken(egInputToken, egData);
 
         if (!egData.isValid()) {
             if (m_verbosity) {
                 edm::LogWarning("l1t|Global")
                         << "\nWarning: BXVector<l1t::EGamma> with input tag "
-                        << caloInputTag
+		  //<< caloInputTag
                         << "\nrequested in configuration, but not found in the event.\n"
                         << std::endl;
             }
@@ -226,13 +229,13 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
 
     if (receiveTau) {
         edm::Handle<BXVector<l1t::Tau>> tauData;
-        iEvent.getByLabel(caloInputTag, tauData);
+        iEvent.getByToken(tauInputToken, tauData);
 
         if (!tauData.isValid()) {
             if (m_verbosity) {
                 edm::LogWarning("l1t|Global")
                         << "\nWarning: BXVector<l1t::Tau> with input tag "
-                        << caloInputTag
+		  //<< caloInputTag
                         << "\nrequested in configuration, but not found in the event.\n"
                         << std::endl;
             }
@@ -255,13 +258,13 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
 
     if (receiveJet) {
         edm::Handle<BXVector<l1t::Jet>> jetData;
-        iEvent.getByLabel(caloInputTag, jetData);
+        iEvent.getByToken(jetInputToken, jetData);
 
         if (!jetData.isValid()) {
             if (m_verbosity) {
                 edm::LogWarning("l1t|Global")
                         << "\nWarning: BXVector<l1t::Jet> with input tag "
-                        << caloInputTag
+		  //<< caloInputTag
                         << "\nrequested in configuration, but not found in the event.\n"
                         << std::endl;
             }
@@ -284,13 +287,13 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
 
     if(receiveEtSums) {
         edm::Handle<BXVector<l1t::EtSum>> etSumData;
-        iEvent.getByLabel(caloInputTag, etSumData);
+        iEvent.getByToken(sumInputToken, etSumData);
 
         if(!etSumData.isValid()) {
             if (m_verbosity) {
                 edm::LogWarning("l1t|Global")
                         << "\nWarning: BXVector<l1t::EtSum> with input tag "
-                        << caloInputTag
+		  //<< caloInputTag
                         << "\nrequested in configuration, but not found in the event.\n"
                         << std::endl;
             }
@@ -337,13 +340,13 @@ void l1t::GtBoard::receiveCaloObjectData(edm::Event& iEvent,
 
 // receive data from Global Muon Trigger
 void l1t::GtBoard::receiveMuonObjectData(edm::Event& iEvent,
-    const edm::InputTag& muInputTag, const bool receiveMu,
+    const edm::EDGetTokenT<BXVector<l1t::Muon> >& muInputToken, const bool receiveMu,
     const int nrL1Mu) {
 
     if (m_verbosity) {
         LogDebug("l1t|Global")
                 << "\n**** GtBoard receiving muon data = "
-                << "\n     from input tag " << muInputTag << "\n"
+	  //<< "\n     from input tag " << muInputTag << "\n"
                 << std::endl;
     }
 
@@ -352,13 +355,13 @@ void l1t::GtBoard::receiveMuonObjectData(edm::Event& iEvent,
     // get data from Global Muon Trigger
     if (receiveMu) {
         edm::Handle<BXVector<l1t::Muon>> muonData;
-        iEvent.getByLabel(muInputTag, muonData);
+        iEvent.getByToken(muInputToken, muonData);
 
         if (!muonData.isValid()) {
             if (m_verbosity) {
                 edm::LogWarning("l1t|Global")
                         << "\nWarning: BXVector<l1t::Muon> with input tag "
-                        << muInputTag
+		  //<< muInputTag
                         << "\nrequested in configuration, but not found in the event.\n"
                         << std::endl;
             }
