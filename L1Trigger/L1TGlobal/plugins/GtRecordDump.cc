@@ -110,6 +110,9 @@ namespace l1t {
     int m_maxBxVectors;
     
     L1TGlobalUtil* m_gtUtil;
+    
+    private:
+    int m_tvVersion;
   };
 
   GtRecordDump::GtRecordDump(const edm::ParameterSet& iConfig)
@@ -135,6 +138,7 @@ namespace l1t {
       m_dumpTestVectors = iConfig.getParameter<bool>("dumpVectors");        
       std::string fileName = iConfig.getParameter<std::string>("tvFileName");
       if(m_dumpTestVectors) m_testVectorFile.open(fileName.c_str());
+      m_tvVersion       = iConfig.getParameter<int>("tvVersion");
       
       m_bxOffset = iConfig.getParameter<int>("bxOffset");
 
@@ -342,13 +346,19 @@ namespace l1t {
 	            switch ( etsum->getType() ) {
 		       case l1t::EtSum::EtSumType::kMissingEt:
 			 cout << " ETM:  ";
-			 break; 
+			 break;
+		       case l1t::EtSum::EtSumType::kMissingEtHF:
+			 cout << " ETMHF:";
+			 break;			  
 		       case l1t::EtSum::EtSumType::kMissingHt:
 			 cout << " HTM:  ";
 			 break; 		     
 		       case l1t::EtSum::EtSumType::kTotalEt:
 			 cout << " ETT:  ";
-			 break; 		     
+			 break; 		  
+		       case l1t::EtSum::EtSumType::kTotalEtEm:
+			 cout << " ETTem:";
+			 break; 					    
 		       case l1t::EtSum::EtSumType::kTotalHt:
 			 cout << " HTT:  ";
 			 break; 
@@ -369,7 +379,9 @@ namespace l1t {
 		         break;
 		    }
 	            cout << " Et "  << std::dec << std::setw(3) << etsum->hwPt()  << " (0x" << std::hex << std::setw(3) << std::setfill('0') << etsum->hwPt()  << ")";
-		    if(etsum->getType() == l1t::EtSum::EtSumType::kMissingEt || etsum->getType() == l1t::EtSum::EtSumType::kMissingHt)
+		    if(etsum->getType() == l1t::EtSum::EtSumType::kMissingEt || 
+		       etsum->getType() == l1t::EtSum::EtSumType::kMissingHt || 
+		       etsum->getType() == l1t::EtSum::EtSumType::kMissingEtHF)
 		       cout << " Phi " << std::dec << std::setw(3) << etsum->hwPhi() << " (0x" << std::hex << std::setw(2) << std::setfill('0') << etsum->hwPhi() << ")";
 		    cout << endl;
 	       } 
@@ -508,16 +520,18 @@ void GtRecordDump::dumpTestVectors(int bx, std::ofstream& myOutFile,
 
 // Dump 8 tau (8 digits + space)
    nDumped = 0;
+   int maxTau = 8;
+   if(m_tvVersion>1) maxTau = 12;
    if(taus.isValid()) {
      for(std::vector<l1t::Tau>::const_iterator tau = taus->begin(bx); tau != taus->end(bx); ++tau) {
 	unsigned int packedWd = formatTau(tau);
-	if(nDumped<8) {
+	if(nDumped<maxTau) {
            myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << packedWd;
           nDumped++;
 	}
      }    
    }
-   for(int i=nDumped; i<8; i++) {
+   for(int i=nDumped; i<maxTau; i++) {
       myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << empty;
    }
    
@@ -536,15 +550,17 @@ void GtRecordDump::dumpTestVectors(int bx, std::ofstream& myOutFile,
       myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << empty;
    }
 
-// Dump Et Sums (Order ETT, HT, ETM, HTM) (Each 8 digits + space)
-   unsigned int ETTpackWd = 0;
-   unsigned int HTTpackWd = 0;
-   unsigned int ETMpackWd = 0;
-   unsigned int HTMpackWd = 0;
-   unsigned int HFP0packWd = 0;
-   unsigned int HFM0packWd = 0;
-   unsigned int HFP1packWd = 0;
-   unsigned int HFM1packWd = 0;
+// Dump Et Sums (Order ETT, ETTem, HT, ETM, ETMHF, HTM) 
+   unsigned int ETTpackWd   = 0;
+   unsigned int ETTempackWd = 0;
+   unsigned int HTTpackWd   = 0;
+   unsigned int ETMpackWd   = 0;
+   unsigned int HTMpackWd   = 0;
+   unsigned int ETMHFpackWd = 0;
+   unsigned int HFP0packWd  = 0;
+   unsigned int HFM0packWd  = 0;
+   unsigned int HFP1packWd  = 0;
+   unsigned int HFM1packWd  = 0;
 
    if(etsums.isValid()){
      for(std::vector<l1t::EtSum>::const_iterator etsum = etsums->begin(bx); etsum != etsums->end(bx); ++etsum) {
@@ -552,13 +568,19 @@ void GtRecordDump::dumpTestVectors(int bx, std::ofstream& myOutFile,
 	switch ( etsum->getType() ) {
 	   case l1t::EtSum::EtSumType::kMissingEt:
 	     ETMpackWd = formatMissET(etsum);
-	     break; 
+	     break;
+	   case l1t::EtSum::EtSumType::kMissingEtHF:
+	     ETMHFpackWd = formatMissET(etsum);
+	     break;	      
 	   case l1t::EtSum::EtSumType::kMissingHt:
 	     HTMpackWd = formatMissET(etsum);
 	     break; 		     
 	   case l1t::EtSum::EtSumType::kTotalEt:
 	     ETTpackWd = formatTotalET(etsum);
-	     break; 		     
+	     break;
+	   case l1t::EtSum::EtSumType::kTotalEtEm:
+	     ETTempackWd = formatTotalET(etsum);
+	     break;	      		     
 	   case l1t::EtSum::EtSumType::kTotalHt:
 	     HTTpackWd = formatTotalET(etsum);
 	     break; 	
@@ -580,17 +602,30 @@ void GtRecordDump::dumpTestVectors(int bx, std::ofstream& myOutFile,
      } //end loop over etsums
    }
 
-   // Temporary put HMB bits in upper part of other SumEt Words
+   // Put HMB bits in upper part of other SumEt Words
    ETTpackWd |= HFP0packWd;
    HTTpackWd |= HFM0packWd;
    ETMpackWd |= HFP1packWd;
    HTMpackWd |= HFM1packWd;
+   
+   // ETTem goes into ETT word bits 12 - 23
+   if(m_tvVersion>1) ETTpackWd |= ( ETTempackWd << 12);
 
    // Fill in the words in appropriate order
    myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << ETTpackWd;
    myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << HTTpackWd;
    myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << ETMpackWd;
    myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << HTMpackWd;
+   if(m_tvVersion>1) {
+      myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << ETMHFpackWd;
+      myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << empty;
+   }
+
+
+// If tvVersion > 1 put in placeholds for empty link (6 words (frames)) all zeros.
+   if(m_tvVersion>1) {
+      for(int i=0; i<6; i++) myOutFile << " " << std::hex << std::setw(8) << std::setfill('0') << empty;
+   }
    
 // External Condition (64 digits + space)
     int digit = 0;

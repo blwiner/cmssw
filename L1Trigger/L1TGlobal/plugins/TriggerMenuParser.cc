@@ -315,14 +315,15 @@ void l1t::TriggerMenuParser::parseCondFormats(const L1TUtmTriggerMenu* utmMenu) 
 	     condition.getType() == esConditionType::TripleJet    ||
 	     condition.getType() == esConditionType::QuadJet      ) 
 	  {
-             parseCalo(condition,chipNr,false); //blw 
+             parseCalo(condition,chipNr,false); 
 
 	  // parse Energy Sums	 
 	  } else if(condition.getType() == esConditionType::TotalEt ||
+	            //condition.getType() == esConditionType::TotalEtEM ||
                     condition.getType() == esConditionType::TotalHt ||
 		    condition.getType() == esConditionType::MissingEt ||
 		    condition.getType() == esConditionType::MissingHt ||
-		    //condition.getType() == esConditionType::MissingEt2 ||
+		    //condition.getType() == esConditionType::MissingEtHF ||		    
 		    condition.getType() == esConditionType::MinBiasHFP0 ||
 		    condition.getType() == esConditionType::MinBiasHFM0 ||
 		    condition.getType() == esConditionType::MinBiasHFP1 ||
@@ -585,7 +586,9 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
     GlobalScales::ScaleParameters tauScales;
     GlobalScales::ScaleParameters jetScales;
     GlobalScales::ScaleParameters ettScales;
+    GlobalScales::ScaleParameters ettEmScales;    
     GlobalScales::ScaleParameters etmScales;
+    GlobalScales::ScaleParameters etmHfScales;
     GlobalScales::ScaleParameters httScales;
     GlobalScales::ScaleParameters htmScales; 
  
@@ -602,7 +605,9 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
     else if (scale.getObjectType() == esObjectType::Tau)    scaleParam = &tauScales;
     else if (scale.getObjectType() == esObjectType::Jet)    scaleParam = &jetScales;
     else if (scale.getObjectType() == esObjectType::ETT)    scaleParam = &ettScales;
+//    else if (scale.getObjectType() == esObjectType::ETTEM)    scaleParam = &ettEmScales;    
     else if (scale.getObjectType() == esObjectType::ETM)    scaleParam = &etmScales;
+//    else if (scale.getObjectType() == esObjectType::ETMHF)  scaleParam = &etmHfScales;
     else if (scale.getObjectType() == esObjectType::HTT)    scaleParam = &httScales;
     else if (scale.getObjectType() == esObjectType::HTM)    scaleParam = &htmScales;
     else scaleParam = 0;
@@ -626,10 +631,12 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
 		// There are no scales for these in the XML so the other case statements will not be seen....do it here.
 		if(scale.getObjectType() == esObjectType::ETT || scale.getObjectType() == esObjectType::HTT || 
 		   scale.getObjectType() == esObjectType::ETM || scale.getObjectType() == esObjectType::HTM ) {
+//		   scale.getObjectType() == esObjectType::ETTEM || scale.getObjectType() == esObjectType::ETMHF) {
 		   
 	           scaleParam->etaMin  = -1.;
 		   scaleParam->etaMax  = -1.;
 		   scaleParam->etaStep = -1.;		   
+//		   if(scale.getObjectType() == esObjectType::ETT || scale.getObjectType() == esObjectType::HTT || scale.getObjectType() == esObjectType::ETTEM) {
 		   if(scale.getObjectType() == esObjectType::ETT || scale.getObjectType() == esObjectType::HTT) {
 	              scaleParam->phiMin  = -1.;
 		      scaleParam->phiMax  = -1.;
@@ -681,7 +688,9 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
   m_gtScales.setTauScales(tauScales);
   m_gtScales.setJetScales(jetScales);
   m_gtScales.setETTScales(ettScales);
+  m_gtScales.setETTEmScales(ettEmScales);
   m_gtScales.setETMScales(etmScales);
+  m_gtScales.setETMHfScales(etmHfScales);
   m_gtScales.setHTTScales(httScales);
   m_gtScales.setHTMScales(htmScales);
   
@@ -714,6 +723,7 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
     parseCalMuPhi_LUTS(scaleMap, "TAU", "MU");
     parseCalMuPhi_LUTS(scaleMap, "HTM", "MU");
     parseCalMuPhi_LUTS(scaleMap, "ETM", "MU");
+//    parseCalMuPhi_LUTS(scaleMap, "ETMHF", "MU");
 
     // Now the Pt LUTs  (??? more combinations needed ??)
     // ---------------
@@ -745,21 +755,25 @@ bool l1t::TriggerMenuParser::parseScales(std::map<std::string, tmeventsetup::esS
     parseDeltaPhi_Cos_LUTS(scaleMap,"EG","JET",precisions["PRECISION-EG-JET-Delta"],precisions["PRECISION-EG-JET-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"EG","TAU",precisions["PRECISION-EG-TAU-Delta"],precisions["PRECISION-EG-TAU-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"EG","ETM",precisions["PRECISION-EG-ETM-Delta"],precisions["PRECISION-EG-ETM-Math"]);
+    //parseDeltaPhi_Cos_LUTS(scaleMap,"EG","ETMHF",precisions["PRECISION-EG-ETMHF-Delta"],precisions["PRECISION-EG-ETMHF-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"EG","HTM",precisions["PRECISION-EG-HTM-Delta"],precisions["PRECISION-EG-HTM-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"EG","MU", precisions["PRECISION-EG-MU-Delta"], precisions["PRECISION-EG-MU-Math"]);
 
     parseDeltaPhi_Cos_LUTS(scaleMap,"JET","JET",precisions["PRECISION-JET-JET-Delta"],precisions["PRECISION-JET-JET-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"JET","TAU",precisions["PRECISION-JET-TAU-Delta"],precisions["PRECISION-JET-TAU-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"JET","ETM",precisions["PRECISION-JET-ETM-Delta"],precisions["PRECISION-JET-ETM-Math"]);
+//    parseDeltaPhi_Cos_LUTS(scaleMap,"JET","ETMHF",precisions["PRECISION-JET-ETMHF-Delta"],precisions["PRECISION-JET-ETMHF-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"JET","HTM",precisions["PRECISION-JET-HTM-Delta"],precisions["PRECISION-JET-HTM-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"JET","MU", precisions["PRECISION-JET-MU-Delta"], precisions["PRECISION-JET-MU-Math"]);
 
     parseDeltaPhi_Cos_LUTS(scaleMap,"TAU","TAU",precisions["PRECISION-TAU-TAU-Delta"],precisions["PRECISION-TAU-TAU-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"TAU","ETM",precisions["PRECISION-TAU-ETM-Delta"],precisions["PRECISION-TAU-ETM-Math"]);
+//    parseDeltaPhi_Cos_LUTS(scaleMap,"TAU","ETMHF",precisions["PRECISION-TAU-ETMHF-Delta"],precisions["PRECISION-TAU-ETMHF-Math"]);    
     parseDeltaPhi_Cos_LUTS(scaleMap,"TAU","HTM",precisions["PRECISION-TAU-HTM-Delta"],precisions["PRECISION-TAU-HTM-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"TAU","MU", precisions["PRECISION-TAU-MU-Delta"], precisions["PRECISION-TAU-MU-Math"]);
 
     parseDeltaPhi_Cos_LUTS(scaleMap,"MU","ETM",precisions["PRECISION-MU-ETM-Delta"],precisions["PRECISION-MU-ETM-Math"]);
+//    parseDeltaPhi_Cos_LUTS(scaleMap,"MU","ETMHF",precisions["PRECISION-MU-ETMHF-Delta"],precisions["PRECISION-MU-ETMHF-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"MU","HTM",precisions["PRECISION-MU-HTM-Delta"],precisions["PRECISION-MU-HTM-Math"]);
     parseDeltaPhi_Cos_LUTS(scaleMap,"MU","MU", precisions["PRECISION-MU-MU-Delta"], precisions["PRECISION-MU-MU-Math"]);
 
@@ -2014,6 +2028,10 @@ bool l1t::TriggerMenuParser::parseEnergySum(tmeventsetup::esCondition condEnergy
       energySumObjType = GlobalObject::gtETT;
       cType = TypeETT;
     }
+/*    else if( condEnergySum.getType() == esConditionType::TotalEtEM ){
+      energySumObjType = GlobalObject::gtETTem;
+      cType = TypeETTem;
+    }  */  
     else if( condEnergySum.getType() == esConditionType::TotalHt ){
       energySumObjType = GlobalObject::gtHTT;
       cType = TypeHTT;
@@ -2022,9 +2040,9 @@ bool l1t::TriggerMenuParser::parseEnergySum(tmeventsetup::esCondition condEnergy
       energySumObjType = GlobalObject::gtHTM;
       cType = TypeHTM;
     }
-/*    else if( condEnergySum.getType() == esConditionType::MissingEt2 ){
-      energySumObjType = GlobalObject::gtETM2;
-      cType = TypeETM2;
+/*    else if( condEnergySum.getType() == esConditionType::MissingEtHF ){
+      energySumObjType = GlobalObject::gtETMHF;
+      cType = TypeETMHF;
     } */
     else if( condEnergySum.getType() == esConditionType::MinBiasHFP0 ){
       energySumObjType = GlobalObject::gtMinBiasHFP0;
